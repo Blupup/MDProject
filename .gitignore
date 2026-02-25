@@ -1,0 +1,48 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+**/doc/api/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+*.lock
+*.zip
+
+# Android
+.android/
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+
+# iOS
+.ios/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Pods/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+
+# macOS
+.macos/
+**/macos/Flutter/ephemeral/
+
+# Web
+web/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+bcorp_request.zip
+bcorp_quest.iml

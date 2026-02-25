@@ -1,0 +1,253 @@
+// quest_list_screen.dart
+import 'package:flutter/material.dart';
+import 'quest_detail_screen.dart';
+import '../data/quest_data.dart';
+
+class QuestListScreen extends StatelessWidget {
+  const QuestListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0F2D),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Кастомный AppBar
+            _buildAppBar(context),
+            
+            Expanded(
+              child: Stack(
+                children: [
+                  // Фоновые элементы
+                  _buildBackground(),
+                  
+                  // Список квестов
+                  _buildQuestList(context),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0A0F2D), Color(0xFF151A3A)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Квесты',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackground() {
+    return Positioned(
+      top: 50,
+      right: -30,
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              const Color(0xFF00D4AA).withOpacity(0.1),
+              const Color(0xFF0A0F2D).withOpacity(0.01),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestList(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(24),
+      itemCount: QuestData.quests.length,
+      itemBuilder: (context, index) {
+        final quest = QuestData.quests[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: _buildQuestCard(context, quest),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuestCard(BuildContext context, Quest quest) {
+    final gradients = [
+      const LinearGradient(colors: [Color(0xFF2E86AB), Color(0xFF00D4AA)]),
+      const LinearGradient(colors: [Color(0xFF6A11CB), Color(0xFF2575FC)]),
+      const LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)]),
+    ];
+    
+    final gradient = gradients[QuestData.quests.indexOf(quest) % gradients.length];
+
+    return MouseRegion(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => QuestDetailScreen(quest: quest),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              quest.title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              quest.description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.8),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      _buildDifficultyBadge(quest.difficulty),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  _buildQuestInfo(quest),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyBadge(String difficulty) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        difficulty,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestInfo(Quest quest) {
+    return Row(
+      children: [
+        _buildInfoItem(Icons.schedule_rounded, quest.duration),
+        const SizedBox(width: 20),
+        _buildInfoItem(Icons.assignment_rounded, '${quest.taskCount} заданий'),
+        const Spacer(),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.arrow_forward_rounded,
+            color: Colors.white,
+            size: 18,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Colors.white.withOpacity(0.7),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
