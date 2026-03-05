@@ -134,7 +134,7 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildStatsCard(AppState s) {
     final mins = s.totalMinutes;
-    final timeStr = mins < 60 ? '${mins}м' : '${mins ~/ 60}ч ${mins % 60}м';
+    final timeStr = mins < 60 ? '$minsм' : '${mins ~/ 60}ч ${mins % 60}м';
 
     return AppCard(
       child: Column(

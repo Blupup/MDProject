@@ -1,5 +1,4 @@
 // lib/data/app_state.dart
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppState extends ChangeNotifier {

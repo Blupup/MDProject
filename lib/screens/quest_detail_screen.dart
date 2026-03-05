@@ -176,7 +176,7 @@ class _TaskItem extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on_rounded, size: 12, color: kGreen),
+                          const Icon(Icons.location_on_rounded, size: 12, color: kGreen),
                           const SizedBox(width: 3),
                           Text(task.location, style: const TextStyle(fontSize: 11, color: kGreen, fontWeight: FontWeight.w500)),
                         ],

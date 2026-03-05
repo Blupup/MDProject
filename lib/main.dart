@@ -29,7 +29,6 @@ class BCorpusApp extends StatelessWidget {
           primary: Color(0xFF00D4AA),
           secondary: Color(0xFF2E86AB),
           surface: Color(0xFF151A3A),
-          background: Color(0xFF0A0F2D),
         ),
         scaffoldBackgroundColor: const Color(0xFF0A0F2D),
         splashColor: const Color(0xFF00D4AA).withOpacity(0.1),

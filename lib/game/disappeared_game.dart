@@ -115,7 +115,9 @@ class _DisappearedGameState extends State<DisappearedGame>
     _shakeCtrl.dispose();
     _flashCtrl.dispose();
     _countdownCtrl.dispose();
-    for (final c in _cardCtrls) c.dispose();
+    for (final c in _cardCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -405,10 +407,10 @@ class _DisappearedGameState extends State<DisappearedGame>
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: kRed.withOpacity(0.5)),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.arrow_upward_rounded, color: kRed, size: 18),
-                const SizedBox(width: 6),
-                const Text('Один предмет исчез! ☝️', style: TextStyle(color: kRed, fontWeight: FontWeight.w700, fontSize: 13)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.arrow_upward_rounded, color: kRed, size: 18),
+                SizedBox(width: 6),
+                Text('Один предмет исчез! ☝️', style: TextStyle(color: kRed, fontWeight: FontWeight.w700, fontSize: 13)),
               ]),
             ),
           ),
@@ -584,8 +586,8 @@ class _DisappearedGameState extends State<DisappearedGame>
           top: 6, left: 6,
           child: Container(
             width: 20, height: 20,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [kBlue, kGreen]),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [kBlue, kGreen]),
               shape: BoxShape.circle,
             ),
             child: Center(child: Text(

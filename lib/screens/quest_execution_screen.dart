@@ -5,7 +5,7 @@ import '../data/quest_data.dart';
 import '../data/app_state.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/confetti_widget.dart';
-import '../game/disappeared_game.dart';
+import 'game_selection_screen.dart';
 
 class QuestExecutionScreen extends StatefulWidget {
   final Quest quest;
@@ -18,7 +18,6 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
     with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _taskDone = false;
-  bool _showMiniGame = false;
   bool _showConfetti = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
@@ -42,15 +41,10 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    _taskCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _timer?.cancel(); _taskCtrl.dispose(); super.dispose(); }
 
   QuestTask get _task => widget.quest.tasks[_currentIndex];
   int get _total => widget.quest.tasks.length;
-  double get _progress => _currentIndex / _total;
 
   String get _elapsed {
     final m = _elapsedSeconds ~/ 60;
@@ -60,7 +54,17 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
 
   void _onComplete() {
     if (_task.hasMiniGame) {
-      setState(() => _showMiniGame = true);
+      // → Открываем экран выбора игры
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GameSelectionScreen(
+            task: _task,
+            onSuccess: _onGameSuccess,
+            onFail: _onGameFail,
+          ),
+        ),
+      );
     } else {
       _markDone();
     }
@@ -72,12 +76,10 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   }
 
   void _onGameSuccess() {
-    setState(() => _showMiniGame = false);
     _markDone();
   }
 
   void _onGameFail() {
-    setState(() => _showMiniGame = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: const Row(children: [
         Icon(Icons.close_rounded, color: Colors.white),
@@ -92,7 +94,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
 
   void _next() {
     if (_currentIndex < _total - 1) {
-      setState(() { _currentIndex++; _taskDone = false; _showMiniGame = false; });
+      setState(() { _currentIndex++; _taskDone = false; });
       _taskCtrl.forward(from: 0);
     } else {
       _finishQuest();
@@ -125,14 +127,6 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_showMiniGame) {
-      return DisappearedGame(
-        items: _task.miniGameItems,
-        onSuccess: _onGameSuccess,
-        onFail: _onGameFail,
-      );
-    }
-
     return ConfettiOverlay(
       active: _showConfetti,
       child: Scaffold(
@@ -149,12 +143,20 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                     child: Column(children: [
+                      // ─── ФОТО И ИСТОРИЯ МЕСТА ────────────────────────────
+                      _buildLocationCard(),
+                      const SizedBox(height: 14),
+                      // ─── КАРТОЧКА ЗАДАНИЯ ────────────────────────────────
                       _buildTaskCard(),
                       const SizedBox(height: 14),
-                      if (_taskDone) _buildSuccessBanner() else _buildInstructions(),
-                      if (_task.hasMiniGame && !_taskDone) ...[
-                        const SizedBox(height: 14),
-                        _buildGameBadge(),
+                      if (_taskDone)
+                        _buildSuccessBanner()
+                      else ...[
+                        _buildInstructions(),
+                        if (_task.hasMiniGame) ...[
+                          const SizedBox(height: 14),
+                          _buildGameBadge(),
+                        ],
                       ],
                     ]),
                   ),
@@ -165,6 +167,105 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
           ]),
         ),
       ),
+    );
+  }
+
+  // ─── Карточка места: фото + история ──────────────────────────────────────
+  Widget _buildLocationCard() {
+    final hasPhoto = _task.locationPhoto != null && _task.locationPhoto!.isNotEmpty;
+    final hasStory = _task.locationStory != null && _task.locationStory!.isNotEmpty;
+
+    if (!hasPhoto && !hasStory) return const SizedBox();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: kCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 14, offset: const Offset(0, 5))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Фото (если указано) ─────────────────────────────────────────
+          if (hasPhoto)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+              child: Stack(children: [
+                Image.asset(
+                  _task.locationPhoto!,
+                  width: double.infinity,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                ),
+                // Градиент поверх фото
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, kBg.withOpacity(0.5)],
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+                // Метка «Место»
+                Positioned(top: 12, left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.location_on_rounded, size: 12, color: kGreen),
+                      const SizedBox(width: 4),
+                      Text(_task.location,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+
+          // ── История / описание места ────────────────────────────────────
+          if (hasStory)
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, hasPhoto ? 14 : 16, 16, 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(gradient: kGradientMain, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 15),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Об этом месте',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                          color: Colors.white.withOpacity(0.55))),
+                ]),
+                const SizedBox(height: 10),
+                Text(_task.locationStory!,
+                    style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.82), height: 1.55)),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Заглушка если фото не нашлось
+  Widget _photoPlaceholder() {
+    return Container(
+      width: double.infinity, height: 180,
+      color: kCardDark,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.image_not_supported_rounded, color: Colors.white.withOpacity(0.2), size: 40),
+        const SizedBox(height: 8),
+        Text('Фото не найдено',
+            style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
+      ]),
     );
   }
 
@@ -203,7 +304,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Задание ${_currentIndex + 1} / $_total',
               style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.w600)),
-          Text('${(_progress * 100).round()}%',
+          Text('${((_currentIndex / _total) * 100).round()}%',
               style: const TextStyle(fontSize: 12, color: kGreen, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 6),
@@ -242,35 +343,33 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
           blurRadius: 20, offset: const Offset(0, 6),
         )],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 50, height: 50,
-            decoration: BoxDecoration(
-              gradient: _taskDone
-                  ? const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)])
-                  : kGradientMain,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(_taskDone ? Icons.check_rounded : _task.icon, color: Colors.white, size: 26),
+      child: Row(children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 50, height: 50,
+          decoration: BoxDecoration(
+            gradient: _taskDone
+                ? const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)])
+                : kGradientMain,
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-            const SizedBox(height: 3),
-            Row(children: [
-              const Icon(Icons.location_on_rounded, size: 13, color: kGreen),
-              const SizedBox(width: 3),
-              Expanded(child: Text(_task.location,
-                  style: const TextStyle(fontSize: 12, color: kGreen, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis)),
-            ]),
-          ])),
-        ]),
-        const SizedBox(height: 14),
-        Text(_task.description,
-            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.88), height: 1.5)),
+          child: Icon(_taskDone ? Icons.check_rounded : _task.icon, color: Colors.white, size: 26),
+        ),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_task.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
+          const SizedBox(height: 4),
+          Text(_task.description,
+              style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.75), height: 1.4)),
+          const SizedBox(height: 6),
+          Row(children: [
+            const Icon(Icons.location_on_rounded, size: 13, color: kGreen),
+            const SizedBox(width: 3),
+            Expanded(child: Text(_task.location,
+                style: const TextStyle(fontSize: 12, color: kGreen, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis)),
+          ]),
+        ])),
       ]),
     );
   }
@@ -292,10 +391,8 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
           child: const Icon(Icons.videogame_asset_rounded, color: Colors.white, size: 20)),
         const SizedBox(width: 12),
         const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Мини-игра: Найди исчезнувшее 👁️',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-          Text('Запомни предметы и угадай что пропало',
-              style: TextStyle(color: Colors.white54, fontSize: 11)),
+          Text('Мини-игра на выбор 🎮', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text('3 игры — выбери любую, которая нравится', style: TextStyle(color: Colors.white54, fontSize: 11)),
         ])),
         const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF2575FC), size: 16),
       ]),
@@ -310,10 +407,10 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
             begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(children: [
-        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 30),
-        const SizedBox(width: 12),
-        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: const Row(children: [
+        Icon(Icons.check_circle_rounded, color: Colors.white, size: 30),
+        SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Задание выполнено! 🎉', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
           Text('Отличная работа, продолжай!', style: TextStyle(fontSize: 12, color: Colors.white70)),
         ])),
@@ -359,14 +456,14 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
                 border: Border.all(color: Colors.white.withOpacity(0.08))),
             child: Material(color: Colors.transparent,
               child: InkWell(borderRadius: BorderRadius.circular(14),
-                onTap: () => setState(() { _currentIndex--; _taskDone = false; _showMiniGame = false; }),
+                onTap: () => setState(() { _currentIndex--; _taskDone = false; }),
                 child: const Icon(Icons.arrow_back_rounded, color: Colors.white60)))),
           const SizedBox(width: 12),
         ],
         Expanded(child: GradientButton(
           text: _taskDone
               ? (isLast ? 'Завершить квест 🎉' : 'Следующее задание')
-              : (_task.hasMiniGame ? 'Начать мини-игру 🎮' : 'Я нашёл это место ✓'),
+              : (_task.hasMiniGame ? 'Выбрать мини-игру 🎮' : 'Я нашёл это место ✓'),
           icon: _taskDone
               ? (isLast ? Icons.celebration_rounded : Icons.arrow_forward_rounded)
               : (_task.hasMiniGame ? Icons.videogame_asset_rounded : Icons.check_rounded),
@@ -417,7 +514,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   }
 }
 
-// ─── Диалог завершения с анимацией ────────────────────────────────────────
+// ─── Диалог завершения ────────────────────────────────────────────────────
 class _CompletionDialog extends StatefulWidget {
   final Quest quest;
   final int xp;
@@ -430,9 +527,7 @@ class _CompletionDialog extends StatefulWidget {
 
 class _CompletionDialogState extends State<_CompletionDialog> with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double> _scale;
-  late Animation<double> _fade;
-  late Animation<double> _emojiScale;
+  late Animation<double> _scale, _fade, _emojiScale;
 
   @override
   void initState() {
@@ -457,39 +552,30 @@ class _CompletionDialogState extends State<_CompletionDialog> with SingleTickerP
         child: Dialog(
           backgroundColor: kCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Большой эмодзи квеста
-              ScaleTransition(
-                scale: _emojiScale,
-                child: Text(widget.quest.emoji, style: const TextStyle(fontSize: 64)),
-              ),
-              const SizedBox(height: 8),
-              const Text('Квест завершён!',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-              const SizedBox(height: 6),
-              Text(widget.quest.title,
-                  style: const TextStyle(fontSize: 14, color: Colors.white54),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              // Статистика
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: kCardDark, borderRadius: BorderRadius.circular(16)),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                  _stat('⚡', '+${widget.xp}', 'XP'),
-                  Container(width: 1, height: 44, color: Colors.white.withOpacity(0.08)),
-                  _stat('⏱️', widget.elapsed, 'Время'),
-                  Container(width: 1, height: 44, color: Colors.white.withOpacity(0.08)),
-                  _stat('✅', '${widget.quest.taskCount}/${widget.quest.taskCount}', 'Задания'),
-                ]),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(width: double.infinity,
-                child: GradientButton(text: 'Получить награду!', icon: Icons.workspace_premium_rounded, onTap: widget.onDone, height: 56)),
-            ]),
-          ),
+          child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
+            ScaleTransition(scale: _emojiScale,
+              child: Text(widget.quest.emoji, style: const TextStyle(fontSize: 64))),
+            const SizedBox(height: 8),
+            const Text('Квест завершён!',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
+            const SizedBox(height: 6),
+            Text(widget.quest.title, style: const TextStyle(fontSize: 14, color: Colors.white54), textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: kCardDark, borderRadius: BorderRadius.circular(16)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                _stat('⚡', '+${widget.xp}', 'XP'),
+                Container(width: 1, height: 44, color: Colors.white.withOpacity(0.08)),
+                _stat('⏱️', widget.elapsed, 'Время'),
+                Container(width: 1, height: 44, color: Colors.white.withOpacity(0.08)),
+                _stat('✅', '${widget.quest.taskCount}/${widget.quest.taskCount}', 'Задания'),
+              ]),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(width: double.infinity,
+              child: GradientButton(text: 'Получить награду!', icon: Icons.workspace_premium_rounded, onTap: widget.onDone, height: 56)),
+          ])),
         ),
       ),
     );
