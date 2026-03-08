@@ -223,11 +223,11 @@ class QuestData {
         QuestTask(
           number: 2,
           title: 'Лаборатория 3D-печати',
-          description: 'Найди лабораторию 312 с 3D-принтерами — запомни детали оборудования!',
+          description: 'Найди лабораторию 4хх с 3D-принтерами — запомни детали оборудования!',
           hint: 'Ауд. 312 на 3 этаже',
           location: '3 этаж, ауд. 312',
           icon: Icons.precision_manufacturing_rounded,
-          locationStory: 'Лаборатория ауд. 312 — профессиональные 3D-принтеры для студенческих проектов. Открыта в 2019 году.',
+          locationStory: 'Лаборатория ауд. 4хх — профессиональные 3D-принтеры для студенческих проектов. Открыта в 2019 году.',
           locationPhoto: null,  // ← 'assets/images/location_3dlab.jpg'
           miniGameType: MiniGameType.disappeared,
           // ✏️ Предметы для «Найди исчезнувшее»:
@@ -280,6 +280,12 @@ class QuestTask {
   // ── Предметы для игры «Найди исчезнувшее» ────────────────────────────────
   final List<String> miniGameItems;
 
+  // ── Фото для игры «Найди исчезнувшее» ────────────────────────────────────
+  // ✏️ Если указаны — вместо слов показываются фотографии (нужно 4–6 штук).
+  // Пример: disappearedPhotos: ['assets/images/item1.jpg', 'assets/images/item2.jpg', ...]
+  // Если пусто — игра работает со словами из miniGameItems (как раньше).
+  final List<String> disappearedPhotos;
+
   // ── Фото места (показывается на экране задания) ───────────────────────────
   // ✏️ МЕНЯЙ: locationPhoto = 'assets/images/location_entrance.jpg'
   final String? locationPhoto;
@@ -301,6 +307,11 @@ class QuestTask {
 
   bool get hasMiniGame => miniGameType == MiniGameType.disappeared;
 
+  // Возвращает фото или слова для игры «Найди исчезнувшее»
+  // Если disappearedPhotos не пустой — использует фото, иначе — miniGameItems
+  List<String> get disappearedItems =>
+      disappearedPhotos.isNotEmpty ? disappearedPhotos : miniGameItems;
+
   // Для игр: преобразует puzzlePhoto/pairPhotos в List<String>
   List<String> get puzzlePhotos => puzzlePhoto != null ? [puzzlePhoto!] : [];
 
@@ -311,5 +322,6 @@ class QuestTask {
     this.locationPhoto, this.locationStory,
     this.pairPhotos = const [],
     this.puzzlePhoto,
+    this.disappearedPhotos = const [],
   });
 }

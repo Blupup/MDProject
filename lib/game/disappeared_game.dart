@@ -1,4 +1,11 @@
 // lib/game/disappeared_game.dart
+//
+// Игра «Найди исчезнувшее» — показывает карточки с картинками (или словами),
+// одна исчезает, нужно угадать какая.
+//
+// Если items содержат пути 'assets/...' — показываются фото.
+// Если обычные слова — показываются текстовые карточки (как раньше).
+//
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -23,7 +30,7 @@ class DisappearedGame extends StatefulWidget {
 
 class _DisappearedGameState extends State<DisappearedGame>
     with TickerProviderStateMixin {
-  // ─── Состояние ────────────────────────────────────────────────────────────
+
   late List<String> _shuffled;
   late List<String> _remaining;
   String? _removed;
@@ -35,70 +42,59 @@ class _DisappearedGameState extends State<DisappearedGame>
   String? _wrongGuess;
   Timer? _timer;
 
-  // ─── Контроллеры анимаций ─────────────────────────────────────────────────
-  late AnimationController _pulseCtrl;   // пульс в фазе reveal
-  late AnimationController _successCtrl; // финальный успех
-  late AnimationController _failCtrl;    // финальный провал
-  late AnimationController _shakeCtrl;   // тряска при ошибке
-  late AnimationController _flashCtrl;   // вспышка при смене фазы
-  late AnimationController _countdownCtrl; // анимация таймера
+  // Режим картинок: true если items[0] начинается с 'assets/'
+  bool get _photoMode => widget.items.isNotEmpty && widget.items.first.startsWith('assets/');
 
+  late AnimationController _pulseCtrl;
+  late AnimationController _successCtrl;
+  late AnimationController _failCtrl;
+  late AnimationController _shakeCtrl;
+  late AnimationController _flashCtrl;
+  late AnimationController _countdownCtrl;
   late Animation<double> _pulseAnim;
   late Animation<double> _successScaleAnim;
   late Animation<double> _failScaleAnim;
   late Animation<double> _shakeAnim;
   late Animation<double> _flashAnim;
-
-  // Для анимации карточек при запоминании
   late List<AnimationController> _cardCtrls;
   late List<Animation<double>> _cardAnims;
 
   @override
   void initState() {
     super.initState();
-
-    _shuffled = [...widget.items]..shuffle(Random());
+    _shuffled  = [...widget.items]..shuffle(Random());
     _remaining = [..._shuffled];
 
-    // Пульс
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))
       ..repeat(reverse: true);
     _pulseAnim = Tween(begin: 1.0, end: 1.08)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
-    // Успех
     _successCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _successScaleAnim = Tween(begin: 0.0, end: 1.0)
         .animate(CurvedAnimation(parent: _successCtrl, curve: Curves.elasticOut));
 
-    // Провал
     _failCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _failScaleAnim = Tween(begin: 0.0, end: 1.0)
         .animate(CurvedAnimation(parent: _failCtrl, curve: Curves.easeOut));
 
-    // Тряска
     _shakeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _shakeAnim = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.0,  end: -12.0), weight: 1),
       TweenSequenceItem(tween: Tween(begin: -12.0, end: 12.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 12.0, end: -8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 12.0,  end: -8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8.0,   end: 8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 8.0,    end: 0.0), weight: 1),
     ]).animate(_shakeCtrl);
 
-    // Вспышка
     _flashCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
     _flashAnim = Tween(begin: 1.0, end: 0.0)
         .animate(CurvedAnimation(parent: _flashCtrl, curve: Curves.easeOut));
 
-    // Таймер
     _countdownCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 6));
 
-    // Карточки — появление каскадом
-    _cardCtrls = List.generate(
-      widget.items.length,
-      (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 400)),
-    );
+    _cardCtrls = List.generate(widget.items.length,
+      (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 400)));
     _cardAnims = _cardCtrls
         .map((c) => CurvedAnimation(parent: c, curve: Curves.easeOutBack))
         .toList();
@@ -109,21 +105,14 @@ class _DisappearedGameState extends State<DisappearedGame>
   @override
   void dispose() {
     _timer?.cancel();
-    _pulseCtrl.dispose();
-    _successCtrl.dispose();
-    _failCtrl.dispose();
-    _shakeCtrl.dispose();
-    _flashCtrl.dispose();
-    _countdownCtrl.dispose();
-    for (final c in _cardCtrls) {
-      c.dispose();
-    }
+    _pulseCtrl.dispose(); _successCtrl.dispose(); _failCtrl.dispose();
+    _shakeCtrl.dispose(); _flashCtrl.dispose(); _countdownCtrl.dispose();
+    for (final c in _cardCtrls) c.dispose();
     super.dispose();
   }
 
-  // ─── Логика фаз ───────────────────────────────────────────────────────────
+  // ─── Фазы ──────────────────────────────────────────────────────────────────
   void _startMemorize() {
-    // Каскадное появление карточек
     for (var i = 0; i < _cardCtrls.length; i++) {
       Future.delayed(Duration(milliseconds: 80 * i), () {
         if (mounted) _cardCtrls[i].forward();
@@ -138,16 +127,13 @@ class _DisappearedGameState extends State<DisappearedGame>
     _timer?.cancel();
     setState(() => _phase = _Phase.flash);
     HapticFeedback.mediumImpact();
-    _flashCtrl.forward(from: 0).then((_) {
-      if (mounted) _startReveal();
-    });
+    _flashCtrl.forward(from: 0).then((_) { if (mounted) _startReveal(); });
   }
 
   void _startReveal() {
     _removed = _shuffled.removeAt(0);
     _remaining = [..._shuffled];
     setState(() => _phase = _Phase.reveal);
-
     Future.delayed(const Duration(milliseconds: 2200), () {
       if (!mounted) return;
       _flashCtrl.forward(from: 0).then((_) {
@@ -158,8 +144,9 @@ class _DisappearedGameState extends State<DisappearedGame>
           _btnEnabled = true;
           _wrongGuess = null;
         });
-        _countdownCtrl.forward(from: 0);
-        _countdownCtrl.duration = const Duration(seconds: 15);
+        _countdownCtrl
+          ..duration = const Duration(seconds: 15)
+          ..forward(from: 0);
         _tick(onDone: _onTimeout, total: 15);
       });
     });
@@ -172,7 +159,7 @@ class _DisappearedGameState extends State<DisappearedGame>
       _triggerFail();
     } else {
       _shakeCtrl.forward(from: 0);
-      setState(() { _timeLeft = 15; });
+      setState(() => _timeLeft = 15);
       _countdownCtrl.forward(from: 0);
       _tick(onDone: _onTimeout, total: 15);
     }
@@ -191,7 +178,6 @@ class _DisappearedGameState extends State<DisappearedGame>
     if (!_btnEnabled || _phase != _Phase.guess) return;
     _timer?.cancel();
     HapticFeedback.lightImpact();
-
     if (item == _removed) {
       _score = (_timeLeft * 12) + (_lives * 25) + 30;
       setState(() { _btnEnabled = false; _phase = _Phase.success; });
@@ -203,17 +189,12 @@ class _DisappearedGameState extends State<DisappearedGame>
       setState(() { _btnEnabled = false; _wrongGuess = item; });
       _shakeCtrl.forward(from: 0);
       HapticFeedback.vibrate();
-
       if (_lives <= 0) {
         Future.delayed(const Duration(milliseconds: 800), _triggerFail);
       } else {
         Future.delayed(const Duration(milliseconds: 1200), () {
           if (!mounted) return;
-          setState(() {
-            _btnEnabled = true;
-            _wrongGuess = null;
-            _timeLeft = 15;
-          });
+          setState(() { _btnEnabled = true; _wrongGuess = null; _timeLeft = 15; });
           _countdownCtrl.forward(from: 0);
           _tick(onDone: _onTimeout, total: 15);
         });
@@ -227,27 +208,22 @@ class _DisappearedGameState extends State<DisappearedGame>
     Future.delayed(const Duration(milliseconds: 2500), widget.onFail);
   }
 
-  // ─── UI ───────────────────────────────────────────────────────────────────
+  // ─── BUILD ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
         child: Stack(children: [
-          // Фоновые декоративные круги
           const BgCircle(top: -60, left: -40, size: 180, color: Color(0xFF6A11CB), opacity: 0.2),
           const BgCircle(top: 300, left: 200, size: 140, color: kBlue, opacity: 0.12),
-
-          // Вспышка при переходе между фазами
           AnimatedBuilder(
             animation: _flashAnim,
             builder: (_, __) => _flashCtrl.isAnimating
-                ? Positioned.fill(
-                    child: Container(color: Colors.white.withOpacity(_flashAnim.value * 0.18)),
-                  )
+                ? Positioned.fill(child: Container(
+                    color: Colors.white.withOpacity(_flashAnim.value * 0.18)))
                 : const SizedBox(),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(children: [
@@ -263,7 +239,6 @@ class _DisappearedGameState extends State<DisappearedGame>
 
   Widget _buildHeader() {
     return Row(children: [
-      // Бейдж названия игры
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -271,32 +246,29 @@ class _DisappearedGameState extends State<DisappearedGame>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: const Color(0xFF6A11CB).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        child: const Row(children: [
-          Icon(Icons.visibility_off_rounded, color: Colors.white, size: 15),
-          SizedBox(width: 6),
-          Text('Найди исчезнувшее', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+        child: Row(children: [
+          const Icon(Icons.visibility_off_rounded, color: Colors.white, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            _photoMode ? '📸 Найди исчезнувшее' : '👁️ Найди исчезнувшее',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+          ),
         ]),
       ),
       const Spacer(),
-      // Жизни с анимацией
       AnimatedBuilder(
         animation: _shakeAnim,
         builder: (_, child) => Transform.translate(
-          offset: Offset(_shakeAnim.value, 0),
-          child: child,
-        ),
+          offset: Offset(_shakeAnim.value, 0), child: child),
         child: Row(
           children: List.generate(3, (i) {
             final alive = i < _lives;
             return Padding(
               padding: const EdgeInsets.only(left: 6),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                child: Icon(
-                  alive ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: alive ? kRed : Colors.white.withOpacity(0.2),
-                  size: alive ? 24 : 20,
-                ),
+              child: Icon(
+                alive ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: alive ? kRed : Colors.white.withOpacity(0.2),
+                size: alive ? 24 : 20,
               ),
             );
           }),
@@ -313,7 +285,8 @@ class _DisappearedGameState extends State<DisappearedGame>
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(anim),
+          position: Tween<Offset>(
+              begin: const Offset(0, 0.06), end: Offset.zero).animate(anim),
           child: child,
         ),
       ),
@@ -331,101 +304,103 @@ class _DisappearedGameState extends State<DisappearedGame>
     );
   }
 
-  // ── ФАЗА: запоминание ─────────────────────────────────────────────────────
+  // ── ЗАПОМИНАНИЕ ────────────────────────────────────────────────────────────
   Widget _memorizePhase() {
     return Column(children: [
       _infoCard(
-        topText: '👀  Запомни все предметы!',
+        topText: _photoMode ? '📸  Запомни все картинки!' : '👀  Запомни все предметы!',
         bottomWidget: _countdownBar(6, kGreen),
         subText: 'Осталось $_timeLeft сек',
         subColor: _timeLeft <= 2 ? kRed : kGreen,
       ),
-      const SizedBox(height: 18),
+      const SizedBox(height: 14),
       Expanded(
         child: GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, mainAxisSpacing: 12, crossAxisSpacing: 12,
-            childAspectRatio: 1.3,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _photoMode ? 2 : 3,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: _photoMode ? 1.0 : 1.3,
           ),
           itemCount: _shuffled.length,
           itemBuilder: (_, i) => ScaleTransition(
             scale: _cardAnims[i],
-            child: _itemCard(_shuffled[i], i, glowing: true),
+            child: _itemCard(_shuffled[i], i, glowing: true, showLabel: true),
           ),
         ),
       ),
     ]);
   }
 
-  // ── ФАЗА: вспышка-переход ─────────────────────────────────────────────────
+  // ── ВСПЫШКА ────────────────────────────────────────────────────────────────
   Widget _flashPhase() {
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        ScaleTransition(
-          scale: _pulseAnim,
-          child: const Text('⚡', style: TextStyle(fontSize: 72)),
-        ),
-        const SizedBox(height: 16),
-        const Text('Внимание!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
-      ]),
-    );
+    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      ScaleTransition(
+        scale: _pulseAnim,
+        child: const Text('⚡', style: TextStyle(fontSize: 72)),
+      ),
+      const SizedBox(height: 16),
+      const Text('Внимание!',
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+    ]));
   }
 
-  // ── ФАЗА: что-то исчезло ──────────────────────────────────────────────────
+  // ── ЧТО-ТО ИСЧЕЗЛО ─────────────────────────────────────────────────────────
   Widget _revealPhase() {
     return Column(children: [
       _infoCard(
-        topText: '🫣  Что-то исчезло...',
+        topText: _photoMode ? '🫣  Одна картинка исчезла...' : '🫣  Что-то исчезло...',
         subText: 'Запомни что изменилось',
         subColor: Colors.white54,
       ),
-      const SizedBox(height: 18),
-      Expanded(
-        child: Column(children: [
-          GridView.builder(
-            shrinkWrap: true,
+      const SizedBox(height: 14),
+      Expanded(child: Column(children: [
+        Expanded(
+          child: GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, mainAxisSpacing: 12, crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _photoMode ? 2 : 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: _photoMode ? 1.0 : 1.3,
             ),
             itemCount: _remaining.length + 1,
             itemBuilder: (_, i) {
               if (i == _remaining.length) return _emptySlot();
-              return _itemCard(_remaining[i], i, glowing: false);
+              return _itemCard(_remaining[i], i, glowing: false, showLabel: false);
             },
           ),
-          const Spacer(),
-          // Анимированная стрелка "Смотри сюда!"
-          ScaleTransition(
-            scale: _pulseAnim,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: kRed.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kRed.withOpacity(0.5)),
-              ),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.arrow_upward_rounded, color: kRed, size: 18),
-                SizedBox(width: 6),
-                Text('Один предмет исчез! ☝️', style: TextStyle(color: kRed, fontWeight: FontWeight.w700, fontSize: 13)),
-              ]),
+        ),
+        const SizedBox(height: 10),
+        ScaleTransition(
+          scale: _pulseAnim,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: kRed.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kRed.withOpacity(0.5)),
             ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.arrow_upward_rounded, color: kRed, size: 18),
+              SizedBox(width: 6),
+              Text('Один предмет исчез! ☝️',
+                  style: TextStyle(color: kRed, fontWeight: FontWeight.w700, fontSize: 13)),
+            ]),
           ),
-          const SizedBox(height: 12),
-        ]),
-      ),
+        ),
+        const SizedBox(height: 10),
+      ])),
     ]);
   }
 
-  // ── ФАЗА: угадывание ──────────────────────────────────────────────────────
+  // ── УГАДЫВАНИЕ ─────────────────────────────────────────────────────────────
   Widget _guessPhase() {
     final timeColor = _timeLeft > 8 ? kGreen : (_timeLeft > 4 ? Colors.orange : kRed);
     return Column(children: [
       _infoCard(
-        topText: '🤔  Какой предмет исчез?',
+        topText: _photoMode ? '🤔  Какая картинка исчезла?' : '🤔  Какой предмет исчез?',
         bottomWidget: AnimatedBuilder(
           animation: _countdownCtrl,
           builder: (_, __) => _countdownBar(15, timeColor),
@@ -434,83 +409,183 @@ class _DisappearedGameState extends State<DisappearedGame>
         subColor: timeColor,
         timerColor: timeColor,
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 16),
       Expanded(
-        child: SingleChildScrollView(
-          child: Wrap(
-            spacing: 10, runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: widget.items.map((item) => _choiceBtn(item)).toList(),
-          ),
-        ),
+        child: _photoMode ? _photoChoices() : _textChoices(),
       ),
     ]);
   }
 
-  // ── ФАЗА: успех ───────────────────────────────────────────────────────────
+  // Сетка фото для угадывания
+  Widget _photoChoices() {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: widget.items.length,
+      itemBuilder: (_, i) {
+        final item = widget.items[i];
+        final isWrong = _wrongGuess == item;
+        return AnimatedBuilder(
+          animation: _shakeAnim,
+          builder: (_, child) => Transform.translate(
+            offset: Offset(isWrong ? _shakeAnim.value : 0, 0),
+            child: child,
+          ),
+          child: GestureDetector(
+            onTap: _btnEnabled ? () => _guess(item) : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isWrong ? kRed : kGreen.withOpacity(0.4),
+                  width: isWrong ? 3 : 1.5,
+                ),
+                boxShadow: isWrong
+                    ? [BoxShadow(color: kRed.withOpacity(0.4), blurRadius: 12)]
+                    : [BoxShadow(color: kGreen.withOpacity(0.15), blurRadius: 8)],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(fit: StackFit.expand, children: [
+                  Image.asset(
+                    item,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFF1E3A5F),
+                      child: const Center(child: Icon(Icons.image_not_supported_rounded,
+                          color: Colors.white38, size: 32)),
+                    ),
+                  ),
+                  // Затемнение при неправильном ответе
+                  if (isWrong)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: kRed.withOpacity(0.35),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Center(child: Icon(Icons.close_rounded,
+                          color: Colors.white, size: 36)),
+                    ),
+                  // Нижний градиент
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black.withOpacity(0.5)],
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Текстовые кнопки для угадывания (старый режим)
+  Widget _textChoices() {
+    return SingleChildScrollView(
+      child: Wrap(
+        spacing: 10, runSpacing: 10,
+        alignment: WrapAlignment.center,
+        children: widget.items.map((item) => _choiceBtn(item)).toList(),
+      ),
+    );
+  }
+
+  // ── УСПЕХ ──────────────────────────────────────────────────────────────────
   Widget _successPhase() {
     return ScaleTransition(
       scale: _successScaleAnim,
-      child: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          // Большой иконка успеха с градиентом
-          Container(
-            width: 110, height: 110,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [kGreen, Color(0xFF00A896)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: kGreen.withOpacity(0.5), blurRadius: 30, spreadRadius: 5)],
-            ),
-            child: const Icon(Icons.check_rounded, color: Colors.white, size: 60),
+      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(width: 110, height: 110,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [kGreen, Color(0xFF00A896)]),
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: kGreen.withOpacity(0.5), blurRadius: 30, spreadRadius: 5)],
           ),
-          const SizedBox(height: 24),
-          const Text('Правильно!', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white)),
-          const SizedBox(height: 10),
-          // Очки с анимацией
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [kGold, Color(0xFFFFA726)]),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: kGold.withOpacity(0.4), blurRadius: 16)],
-            ),
-            child: Text('+$_score очков', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+          child: const Icon(Icons.check_rounded, color: Colors.white, size: 60)),
+        const SizedBox(height: 24),
+        const Text('Правильно!',
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [kGold, Color(0xFFFFA726)]),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: kGold.withOpacity(0.4), blurRadius: 16)],
           ),
-          const SizedBox(height: 14),
-          Text('Отличная память! 🧠', style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 16)),
-        ]),
-      ),
+          child: Text('+$_score очков',
+              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+        ),
+        const SizedBox(height: 14),
+        // Показываем исчезнувшую картинку
+        if (_photoMode && _removed != null) ...[
+          Text('Это было:', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(_removed!, width: 80, height: 80, fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox()),
+          ),
+        ] else
+          Text('Отличная память! 🧠',
+              style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 16)),
+      ])),
     );
   }
 
-  // ── ФАЗА: провал ──────────────────────────────────────────────────────────
+  // ── ПРОВАЛ ─────────────────────────────────────────────────────────────────
   Widget _failPhase() {
     return ScaleTransition(
       scale: _failScaleAnim,
-      child: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            width: 110, height: 110,
-            decoration: BoxDecoration(
-              color: kRed.withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: kRed, width: 3),
-              boxShadow: [BoxShadow(color: kRed.withOpacity(0.3), blurRadius: 20, spreadRadius: 3)],
-            ),
-            child: const Icon(Icons.close_rounded, color: kRed, size: 60),
+      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(width: 110, height: 110,
+          decoration: BoxDecoration(
+            color: kRed.withOpacity(0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: kRed, width: 3),
+            boxShadow: [BoxShadow(color: kRed.withOpacity(0.3), blurRadius: 20, spreadRadius: 3)],
           ),
-          const SizedBox(height: 24),
-          const Text('Не получилось...', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-          const SizedBox(height: 12),
-          Text('Исчезло: ${_removed ?? "?"}', style: const TextStyle(fontSize: 18, color: kGreen, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text('Попробуй ещё раз! 💪', style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 14)),
-        ]),
-      ),
+          child: const Icon(Icons.close_rounded, color: kRed, size: 60)),
+        const SizedBox(height: 24),
+        const Text('Не получилось...',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
+        const SizedBox(height: 12),
+        if (_photoMode && _removed != null) ...[
+          Text('Исчезла вот эта картинка:',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14)),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(_removed!, width: 90, height: 90, fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox()),
+          ),
+        ] else
+          Text('Исчезло: ${_removed ?? "?"}',
+              style: const TextStyle(fontSize: 18, color: kGreen, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 10),
+        Text('Попробуй ещё раз! 💪',
+            style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 14)),
+      ])),
     );
   }
 
-  // ─── Вспомогательные виджеты ──────────────────────────────────────────────
+  // ─── Вспомогательные виджеты ───────────────────────────────────────────────
   Widget _infoCard({
     required String topText,
     Widget? bottomWidget,
@@ -519,7 +594,7 @@ class _DisappearedGameState extends State<DisappearedGame>
     Color? timerColor,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: BoxDecoration(
         color: kCard,
         borderRadius: BorderRadius.circular(20),
@@ -527,19 +602,17 @@ class _DisappearedGameState extends State<DisappearedGame>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 14, offset: const Offset(0, 5))],
       ),
       child: Column(children: [
-        Text(topText, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+        Text(topText,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
             textAlign: TextAlign.center),
-        const SizedBox(height: 10),
-        if (bottomWidget != null) ...[
-          bottomWidget,
-          const SizedBox(height: 6),
-        ],
+        const SizedBox(height: 8),
+        if (bottomWidget != null) ...[bottomWidget, const SizedBox(height: 5)],
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           if (timerColor != null) ...[
-            Icon(Icons.timer_rounded, color: timerColor, size: 16),
-            const SizedBox(width: 5),
+            Icon(Icons.timer_rounded, color: timerColor, size: 15),
+            const SizedBox(width: 4),
           ],
-          Text(subText, style: TextStyle(color: subColor, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(subText, style: TextStyle(color: subColor, fontSize: 13, fontWeight: FontWeight.w700)),
         ]),
       ]),
     );
@@ -550,14 +623,71 @@ class _DisappearedGameState extends State<DisappearedGame>
       borderRadius: BorderRadius.circular(5),
       child: LinearProgressIndicator(
         value: _timeLeft / total,
-        minHeight: 9,
+        minHeight: 8,
         backgroundColor: Colors.white.withOpacity(0.1),
         valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );
   }
 
-  Widget _itemCard(String text, int i, {required bool glowing}) {
+  // Карточка предмета — фото или текст
+  Widget _itemCard(String item, int i, {required bool glowing, required bool showLabel}) {
+    final isPhoto = item.startsWith('assets/');
+    if (isPhoto) {
+      return _photoCard(item, i, glowing: glowing, showLabel: showLabel);
+    }
+    return _textCard(item, i, glowing: glowing);
+  }
+
+  Widget _photoCard(String path, int i, {required bool glowing, required bool showLabel}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kGreen.withOpacity(glowing ? 0.65 : 0.2), width: 1.5),
+        boxShadow: glowing
+            ? [BoxShadow(color: kGreen.withOpacity(0.25), blurRadius: 10)]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(fit: StackFit.expand, children: [
+          Image.asset(
+            path,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: const Color(0xFF1E3A5F),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.image_rounded, color: Colors.white38, size: 28),
+                const SizedBox(height: 4),
+                Text('Фото ${i + 1}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10)),
+              ]),
+            ),
+          ),
+          // Нижняя полоска с номером
+          if (showLabel)
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: 22,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: Center(child: Text(
+                  '${i + 1}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w700),
+                )),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _textCard(String text, int i, {required bool glowing}) {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -571,29 +701,22 @@ class _DisappearedGameState extends State<DisappearedGame>
             : null,
       ),
       child: Stack(children: [
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.2),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-            ),
-          ),
-        ),
-        Positioned(
-          top: 6, left: 6,
+        Center(child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Text(text,
+              style: const TextStyle(color: Colors.white, fontSize: 13,
+                  fontWeight: FontWeight.w700, height: 1.2),
+              textAlign: TextAlign.center, maxLines: 2),
+        )),
+        Positioned(top: 5, left: 5,
           child: Container(
             width: 20, height: 20,
             decoration: const BoxDecoration(
               gradient: LinearGradient(colors: [kBlue, kGreen]),
               shape: BoxShape.circle,
             ),
-            child: Center(child: Text(
-              '${i + 1}',
-              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
-            )),
+            child: Center(child: Text('${i + 1}',
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))),
           ),
         ),
       ]),
@@ -612,13 +735,10 @@ class _DisappearedGameState extends State<DisappearedGame>
             border: Border.all(color: kRed, width: 2),
             boxShadow: [BoxShadow(color: kRed.withOpacity(0.3), blurRadius: 12)],
           ),
-          child: const Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.question_mark_rounded, color: kRed, size: 28),
-              SizedBox(height: 2),
-              Text('?', style: TextStyle(color: kRed, fontWeight: FontWeight.w900, fontSize: 11)),
-            ]),
-          ),
+          child: const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.question_mark_rounded, color: kRed, size: 28),
+            Text('?', style: TextStyle(color: kRed, fontWeight: FontWeight.w900, fontSize: 11)),
+          ])),
         ),
       ),
     );
@@ -629,9 +749,7 @@ class _DisappearedGameState extends State<DisappearedGame>
     return AnimatedBuilder(
       animation: _shakeAnim,
       builder: (_, child) => Transform.translate(
-        offset: Offset(isWrong ? _shakeAnim.value : 0, 0),
-        child: child,
-      ),
+        offset: Offset(isWrong ? _shakeAnim.value : 0, 0), child: child),
       child: GestureDetector(
         onTap: _btnEnabled ? () => _guess(item) : null,
         child: AnimatedContainer(
@@ -640,23 +758,18 @@ class _DisappearedGameState extends State<DisappearedGame>
           decoration: BoxDecoration(
             gradient: isWrong
                 ? const LinearGradient(colors: [Color(0xFF8B0000), Color(0xFFB71C1C)])
-                : const LinearGradient(colors: [kBlue, kGreen], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                : const LinearGradient(colors: [kBlue, kGreen],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: isWrong ? kRed : Colors.transparent, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: (isWrong ? kRed : kBlue).withOpacity(0.35),
-                blurRadius: 10, offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: [BoxShadow(
+              color: (isWrong ? kRed : kBlue).withOpacity(0.35),
+              blurRadius: 10, offset: const Offset(0, 4))],
           ),
-          child: Text(
-            item,
-            style: TextStyle(
-              color: _btnEnabled ? Colors.white : Colors.white54,
-              fontSize: 15, fontWeight: FontWeight.w700,
-            ),
-          ),
+          child: Text(item,
+              style: TextStyle(
+                color: _btnEnabled ? Colors.white : Colors.white54,
+                fontSize: 15, fontWeight: FontWeight.w700)),
         ),
       ),
     );
