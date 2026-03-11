@@ -1,4 +1,6 @@
 // lib/game/corridor_runner_game.dart
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';

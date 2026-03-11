@@ -195,15 +195,14 @@ class _PlanetHopGameState extends State<PlanetHopGame>
   // ─── Нажатие — прыжок ─────────────────────────────────────────────────────
   void _onTap() {
     if (_phase != _Phase.orbiting) return;
-
     HapticFeedback.mediumImpact();
 
-    // Вектор от игрока к центру следующей планеты
-    final dir = (_nextPlanet - _playerPos);
-    final len = dir.distance;
-    _flyVelocity = dir / len * _flightSpeed;
+    // Касательная к орбите — перпендикуляр радиусу в текущей точке
+    _flyVelocity = Offset(
+      -sin(_orbitAngle) * _flightSpeed,
+       cos(_orbitAngle) * _flightSpeed,
+    );
     _trail.clear();
-
     setState(() => _phase = _Phase.flying);
   }
 
@@ -217,7 +216,9 @@ class _PlanetHopGameState extends State<PlanetHopGame>
     _landCtrl.forward(from: 0);
 
     if (_score >= _winsNeeded) {
-      Future.delayed(const Duration(milliseconds: 600), _triggerWin);
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _triggerWin();
+      });
       return;
     }
 
@@ -238,20 +239,24 @@ class _PlanetHopGameState extends State<PlanetHopGame>
 
   // ─── Промах ───────────────────────────────────────────────────────────────
   void _onMissed() {
-    _phase = _Phase.flying; // временно оставляем чтобы не двойной вызов
+    // Защита от двойного вызова
+    if (_phase == _Phase.dead || _phase == _Phase.won) return;
+    _phase = _Phase.landing; // блокируем повторный вызов пока ждём
     _lives--;
     _missExplosion = _playerPos;
+    _mainCtrl.stop();
     HapticFeedback.heavyImpact();
 
-    // Частицы взрыва
     for (int i = 0; i < 20; i++) {
       _particles.add(_Particle.explode(_missExplosion, _rng));
     }
 
     if (_lives <= 0) {
-      Future.delayed(const Duration(milliseconds: 300), _triggerDeath);
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _triggerDeath();
+      });
     } else {
-      // Сброс — возвращаем на текущую планету
+      _mainCtrl.forward(); // возобновляем тик
       Future.delayed(const Duration(milliseconds: 800), () {
         if (!mounted) return;
         setState(() {
@@ -266,65 +271,76 @@ class _PlanetHopGameState extends State<PlanetHopGame>
 
   void _triggerWin() {
     if (!mounted) return;
+    _mainCtrl.stop();
     setState(() => _phase = _Phase.won);
     _winCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2800), widget.onSuccess);
+    Future.delayed(const Duration(milliseconds: 2800), () {
+      if (mounted) widget.onSuccess();
+    });
   }
 
   void _triggerDeath() {
     if (!mounted) return;
+    _mainCtrl.stop();
     setState(() => _phase = _Phase.dead);
     _deathCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2500), widget.onFail);
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) widget.onFail();
+    });
   }
 
   // ─── BUILD ────────────────────────────────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    final planetIdx = (_score).clamp(0, _planetData.length - 1);
-    final nextIdx   = (_score + 1).clamp(0, _planetData.length - 1);
+   @override
+   Widget build(BuildContext context) {
+   final planetIdx = (_score).clamp(0, _planetData.length - 1);
+   final nextIdx   = (_score + 1).clamp(0, _planetData.length - 1);
 
-    return Scaffold(
+   return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
-        child: Column(children: [
-          _buildTopBar(),
-          Expanded(
+       child: Column(children: [
+         _buildTopBar(),
+         Expanded(
             child: GestureDetector(
-              onTapDown: (_) => _onTap(),
-              behavior: HitTestBehavior.opaque,
+             onTapDown: (_) => _onTap(),
+             behavior: HitTestBehavior.opaque,
               child: LayoutBuilder(builder: (ctx, cst) {
-                _w = cst.maxWidth;
+               _w = cst.maxWidth;
                 _h = cst.maxHeight;
-                if (_curPlanet == Offset.zero) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    setState(_initPlanets);
-                  });
-                }
-                return AnimatedBuilder(
-                  animation: Listenable.merge([_mainCtrl, _bgCtrl, _landCtrl, _winCtrl, _deathCtrl, _trailCtrl]),
-                  builder: (_, __) => CustomPaint(
-                    painter: _GamePainter(
-                      w: _w, h: _h,
-                      bgAngle:     _bgCtrl.value * pi * 2,
-                      curPlanet:   _curPlanet,
-                      nextPlanet:  _nextPlanet,
-                      playerPos:   _playerPos,
-                      orbitAngle:  _orbitAngle,
-                      orbitRadius: _orbitRadius,
-                      phase:       _phase,
-                      trail:       List.from(_trail),
-                      particles:   List.from(_particles),
-                      hitSuccess:  _hitSuccess,
-                      landAnim:    _landCtrl.value,
-                      curData:     _planetData[planetIdx],
-                      nextData:    _planetData[nextIdx],
-                      score:       _score,
-                      winsNeeded:  _winsNeeded,
+               if (_curPlanet == Offset.zero) {
+                 WidgetsBinding.instance.addPostFrameCallback((_) {
+                   setState(_initPlanets);
+                 });
+               }
+               return Stack(
+                 children: [
+                   AnimatedBuilder(
+                     animation: Listenable.merge([_mainCtrl, _bgCtrl, _landCtrl, _winCtrl, _deathCtrl, _trailCtrl]),
+                      builder: (_, __) => CustomPaint(
+                       size: Size(_w, _h),
+                        painter: _GamePainter(
+                         w: _w, h: _h,
+                         bgAngle:     _bgCtrl.value * pi * 2,
+                         curPlanet:   _curPlanet,
+                         nextPlanet:  _nextPlanet,
+                        playerPos:   _playerPos,
+                          orbitAngle:  _orbitAngle,
+                          orbitRadius: _orbitRadius,
+                          phase:       _phase,
+                         trail:       List.from(_trail),
+                          particles:   List.from(_particles),
+                          hitSuccess:  _hitSuccess,
+                         landAnim:    _landCtrl.value,
+                          curData:     _planetData[planetIdx],
+                          nextData:    _planetData[nextIdx],
+                          score:       _score,
+                          winsNeeded:  _winsNeeded,
+                       ),
+                     ),
                     ),
-                    child: _buildOverlays(),
-                  ),
-                );
+                   _buildOverlays(),
+                 ],
+               );
               }),
             ),
           ),
@@ -505,7 +521,7 @@ class _GamePainter extends CustomPainter {
     _drawBackground(canvas, size);
     _drawStars(canvas, size);
     _drawOrbitGuide(canvas);
-    _drawTrajectoryHint(canvas);
+    _drawDirectionArrow(canvas);
     _drawTrail(canvas);
     _drawParticles(canvas);
     _drawPlanets(canvas);
@@ -553,40 +569,46 @@ class _GamePainter extends CustomPainter {
     canvas.drawCircle(
       curPlanet, orbitRadius,
       Paint()
-        ..color = Colors.white.withOpacity(0.1)
+        ..color = Colors.white.withOpacity(0.12)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..shader = SweepGradient(
-          colors: [Colors.white.withOpacity(0.18), Colors.transparent],
-          startAngle: orbitAngle,
-        ).createShader(Rect.fromCircle(center: curPlanet, radius: orbitRadius)),
+        ..strokeWidth = 1.2,
     );
   }
 
-  // ─── Пунктирная линия-подсказка (от игрока к следующей планете) ───────────
-  void _drawTrajectoryHint(Canvas canvas) {
+  // ─── Стрелка направления полёта (касательная к орбите) ───────────────────
+  void _drawDirectionArrow(Canvas canvas) {
     if (phase != _Phase.orbiting || curPlanet == Offset.zero) return;
-    final paint = Paint()
-      ..color = kGold.withOpacity(0.22)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
 
-    const dashLen = 8.0, gapLen = 6.0;
-    final dir  = (nextPlanet - playerPos);
-    final total = dir.distance;
-    final unit = dir / total;
-    double drawn = 0;
-    bool drawing = true;
-    Offset cur = playerPos;
-    while (drawn < total - _planetRadius - 10) {
-      final step = drawing ? dashLen : gapLen;
-      final end  = drawn + step > total ? total : drawn + step;
-      final next = cur + unit * (end - drawn);
-      if (drawing) canvas.drawLine(cur, next, paint);
-      cur    = next;
-      drawn  = end;
-      drawing = !drawing;
-    }
+    // Касательный вектор (тот же что в _onTap)
+    final tx = -sin(orbitAngle);
+    final ty =  cos(orbitAngle);
+
+    const arrowLen = 32.0;
+    final start = playerPos + Offset(tx * (_playerRadius + 4), ty * (_playerRadius + 4));
+    final end   = start + Offset(tx * arrowLen, ty * arrowLen);
+
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.7)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    // Линия стрелки
+    canvas.drawLine(start, end, paint);
+
+    // Наконечник
+    const headLen = 10.0;
+    const headAngle = 0.45; // угол раскрытия наконечника (рад)
+    final angle = atan2(ty, tx);
+    canvas.drawLine(
+      end,
+      end + Offset(cos(angle + pi - headAngle) * headLen, sin(angle + pi - headAngle) * headLen),
+      paint,
+    );
+    canvas.drawLine(
+      end,
+      end + Offset(cos(angle + pi + headAngle) * headLen, sin(angle + pi + headAngle) * headLen),
+      paint,
+    );
   }
 
   // ─── Хвост полёта ─────────────────────────────────────────────────────────

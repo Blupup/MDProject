@@ -69,7 +69,7 @@ class QuestData {
           // ✏️ Описание места (текст под фото):
           locationStory: 'Главный вход — сердце Б-корпуса. Здесь каждый день начинается путь тысяч студентов. Обрати внимание на вывеску и информационный стенд справа.',
           // 📸 Фото места (меняй на свой путь):
-          locationPhoto: null,  // ← замени: 'assets/images/location_entrance.jpg'
+          locationPhoto: 'assets/images/quest1.jpg',  // ← замени: 'assets/images/location_entrance.jpg'
           miniGameType: MiniGameType.none,
           miniGameItems: [],
           // 🃏 Фото для игры «Найди пары» (нужно 4–6 фото):
@@ -81,14 +81,14 @@ class QuestData {
         QuestTask(
           number: 2,
           title: 'Компьютерный класс',
-          description: 'Найди аудиторию 115 — компьютерный класс в правом крыле',
+          description: 'Найди аудиторию 101 — компьютерный класс в правом крыле',
           hint: 'Пройди мимо раздевалки по правому коридору — класс будет после куллера',
-          location: '1 этаж, ауд. 115',
+          location: '1 этаж, ауд. 101',
           icon: Icons.computer_rounded,
           // ✏️ Описание места:
-          locationStory: 'Аудитория 115 — компьютерный класс на 24 места. Здесь проходят практические занятия по программированию.',
+          locationStory: 'Аудитория 101 — компьютерный класс с ОЧЕНЬ мощными пк. Здесь проходят практические занятия по программированию.',
           // 📸 Фото места:
-          locationPhoto: null,  // ← 'assets/images/location_computer_lab.jpg'
+          locationPhoto: 'assets/images/quest2.jpg',  // ← 'assets/images/location_computer_lab.jpg'
           miniGameType: MiniGameType.none,
           miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -99,13 +99,13 @@ class QuestData {
           number: 3,
           title: 'Коворкинг',
           description: 'Найди коворкинг — пространство для командной работы студентов',
-          hint: 'Ауд. 104, по центральному коридору прямо от главного входа',
-          location: '1 этаж, ауд. 104',
+          hint: 'По центральному коридору прямо от главного входа',
+          location: '1 этаж',
           icon: Icons.groups_rounded,
           // ✏️ Описание места:
-          locationStory: 'Коворкинг 104 — любимое место студентов. Удобные столы, маркерные доски, быстрый Wi-Fi. Открыт с 8:00 до 22:00.',
+          locationStory: 'Коворкинг — любимое место студентов. Удобные столы, маркерные доски, быстрый Wi-Fi.',
           // 📸 Фото места:
-          locationPhoto: null,  // ← 'assets/images/location_coworking.jpg'
+          locationPhoto: 'assets/images/pairs_board4.jpg',  // ← 'assets/images/location_coworking.jpg'
           miniGameType: MiniGameType.none,
           miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -128,15 +128,15 @@ class QuestData {
 
         QuestTask(
           number: 1,
-          title: 'Мемориальная доска',
-          description: 'Найди мемориальную доску основателям — запомни все детали!',
-          hint: 'Ищи у главного входа на стене слева',
-          location: 'Главный холл, 1 этаж',
+          title: 'Место с фото активистов',
+          description: 'Найди место с фото — запомни все детали!',
+          hint: 'Ищи на втором этаже напротив одной из лестниц',
+          location: 'Главный холл, 2 этаж',
           icon: Icons.history_edu_rounded,
           // ✏️ Описание места:
-          locationStory: 'Мемориальная доска установлена в 1975 году. На ней выгравированы имена первых профессоров и дата основания кафедры.',
+          locationStory: 'Это место с фото, самых активных ребять из нашего института',
           // 📸 Фото места:
-          locationPhoto: null,  // ← 'assets/images/location_memorial.jpg'
+          locationPhoto: 'assets/images/quest3.jpg',  // ← 'assets/images/location_memorial.jpg'
           miniGameType: MiniGameType.disappeared,
           // ✏️ Предметы для игры «Найди исчезнувшее»:
           miniGameItems: ['Доска', 'Портрет', 'Надпись', 'Дата', 'Имя', 'Фамилия'],
@@ -148,13 +148,13 @@ class QuestData {
 
         QuestTask(
           number: 2,
-          title: 'Актовый зал',
-          description: 'Найди главный актовый зал, где проходят все важные события',
-          hint: 'Большое помещение со сценой на 2 этаже, левое крыло',
-          location: '2 этаж, левое крыло',
+          title: 'Главная лекционная',
+          description: 'Найди главную лекционную, где проходят все важные события и лекции',
+          hint: 'Большое помещение с огромным экраном на 4 этаже',
+          location: '4 этаж, правое крыло',
           icon: Icons.theaters_rounded,
-          locationStory: 'Актовый зал вмещает 300+ человек. Здесь проходят посвящение в студенты, вручение дипломов, конференции.',
-          locationPhoto: null,  // ← 'assets/images/location_hall.jpg'
+          locationStory: '',
+          locationPhoto: 'assets/images/quest4.jpg',  // ← 'assets/images/location_hall.jpg'
           miniGameType: MiniGameType.none,
           miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
