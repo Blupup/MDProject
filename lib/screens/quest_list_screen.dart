@@ -11,7 +11,9 @@ class QuestListScreen extends StatelessWidget {
   static const _gradients = [
     LinearGradient(colors: [Color(0xFF2E86AB), Color(0xFF00D4AA)], begin: Alignment.topLeft, end: Alignment.bottomRight),
     LinearGradient(colors: [Color(0xFF6A11CB), Color(0xFF2575FC)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-    LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    LinearGradient(colors: [Color(0xFF00796B), Color(0xFF26C6DA)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFFD700)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    LinearGradient(colors: [Color(0xFFFF3D71), Color(0xFF9C27B0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
   ];
 
   @override
