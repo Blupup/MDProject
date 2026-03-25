@@ -1,51 +1,44 @@
 // lib/data/quest_data.dart
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  ГДЕ ВСТАВИТЬ СВОИ ФОТОГРАФИИ — ПОЛНАЯ ИНСТРУКЦИЯ
+//  СЮЖЕТ: Ты — новый пользователь. Б-корпус — система.
+//  Пройди 5 уровней чтобы получить полный доступ.
 // ═══════════════════════════════════════════════════════════════════════════
 //
-//  Шаг 1: Создай папку assets/images/ в корне проекта.
+//  КАРТА ИГР:
+//  Квест 1 «Посвящение»     → 👁️  disappeared  (Найди исчезнувшее)
+//  Квест 2 «Железо»         → 🧩  puzzle        (Пятнашки)
+//  Квест 3 «Debug»          → 🎓  runner        (Коридорный раннер)
+//  Квест 4 «Cyber Life»     → 🚀  planetHop     (Межпланетный прыжок)
+//  Квест 5 «Диплом»         → 🃏  pairs         (Найди пары)
 //
-//  Шаг 2: Брось туда все свои фото. Рекомендуемые имена:
-//    Для мест квеста:  location_entrance.jpg, location_server.jpg, ...
-//    Для игры «Пары»:  pairs_1.jpg, pairs_2.jpg, pairs_3.jpg, pairs_4.jpg
-//    Для «Пятнашки»:   puzzle_entrance.jpg, puzzle_lab.jpg, ...
-//
-//  Шаг 3: В pubspec.yaml добавь:
-//    flutter:
-//      assets:
-//        - assets/images/
-//
-//  Шаг 4: Замени null на путь к фото в нужном поле (помечены ← ФОТО).
-//
-// ───────────────────────────────────────────────────────────────────────────
-//  В КАЖДОМ ЗАДАНИИ (QuestTask) есть поля:
-//
-//  locationPhoto  — фото места на экране задания
-//  locationStory  — текст-история под фото
-//  miniGameItems  — слова для игры «Найди исчезнувшее» и «Собери слово»
-//  pairPhotos     — 4–6 фото для игры «Найди пары»
-//  puzzlePhoto    — фото для игры «Пятнашки» (нарежется на 12 кусочков)
-//
-//  Если фото = null — игра работает с цветными заглушками.
+// ─────────────────────────────────────────────────────────────────────────
+//  КАК ДОБАВИТЬ ФОТО:
+//  1. Создай папку assets/images/
+//  2. В pubspec.yaml:  flutter: assets: - assets/images/
+//  3. Замени null на путь в поле locationPhoto / puzzlePhoto / pairPhotos
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
 
-enum MiniGameType { none, disappeared }
+enum MiniGameType { none, disappeared, puzzle, runner, planetHop, pairs }
 
 class QuestData {
   static final List<Quest> quests = [
 
     // ════════════════════════════════════════════════════════════════════════
-    //  КВЕСТ 1 — «Level One: Посвящение» (Ознакомительный)
+    //  КВЕСТ 1 — «Level One: Посвящение»
+    //  Ты только что поступил. Пора загрузить систему.
+    //  Игра: «Найди исчезнувшее» — тренировка памяти новичка
     // ════════════════════════════════════════════════════════════════════════
     Quest(
       id: 'quest_1',
       title: 'Level One: Посвящение',
-      description: 'Базовая навигация по главному маршруту студента. Познакомься с корпусом!',
+      description: 'Первый день. Система загружается. Найди 4 точки входа и пройди базовую инициализацию.',
+      storyIntro: 'Добро пожаловать, новый пользователь.\nСистема инициализирована.\nПройди 5 уровней чтобы получить полный доступ к корпусу.',
+      storyOutro: 'Инициализация завершена.\nДобро пожаловать в систему.\n\nУровень 1 — пройден. ✓',
       duration: '30 мин',
       difficulty: 'Новичок',
       difficultyLevel: 1,
@@ -57,14 +50,14 @@ class QuestData {
         QuestTask(
           number: 1,
           title: 'Главный вход',
-          description: 'Посмотри на табличку на входе в корпус. Какой адрес там написан?',
+          description: 'Посмотри на табличку на входе. Какой адрес там написан?',
           hint: 'Это место — портал в мир ИТ. Начни там, где ты зашёл в здание.',
           location: 'Главный вход, 1 этаж',
           icon: Icons.door_front_door_rounded,
-          locationStory: 'Главный холл — точка входа в систему. Существует легенда: если зайти в здание ровно в 08:00:00, твой код сегодня скомпилируется с первого раза.',
-          locationPhoto: 'assets/images/quest1.jpg',  // ← ФОТО главного входа
+          locationStory: 'Портал активирован. Каждый день тысячи пользователей проходят через этот шлюз. Существует легенда: если зайти ровно в 08:00:00 — твой код скомпилируется с первого раза.',
+          locationPhoto: 'assets/images/quest1.jpg',
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Вход', 'Табличка', 'Дверь', 'Адрес', 'Ручка', 'Стекло'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -76,10 +69,10 @@ class QuestData {
           hint: 'Здесь твоя куртка ждёт тебя до конца пар. Ищи на первом этаже.',
           location: '1 этаж, гардероб',
           icon: Icons.checkroom_rounded,
-          locationStory: 'Место временного хранения твоего «внешнего интерфейса» — верхней одежды. Самая стабильная база данных в корпусе: ни разу не было сбоя.',
-          locationPhoto: null,  // ← ФОТО гардероба
+          locationStory: 'Место временного хранения внешнего интерфейса. Самая стабильная база данных корпуса — ни разу не было сбоя. Uptime 100%.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Крючок', 'Стойка', 'Куртка', 'Номер', 'Окно', 'Вешалка'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -91,23 +84,25 @@ class QuestData {
           hint: 'Административное сердце школы. Ищи кабинет на втором этаже в центральной части.',
           location: '2 этаж, центр',
           icon: Icons.business_rounded,
-          locationStory: 'Административный Root-доступ. Здесь решаются вопросы прав доступа (зачисления) и удаления из системы (отчисления). Войти можно, но осторожно.',
-          locationPhoto: null,  // ← ФОТО таблички дирекции
+          locationStory: 'Root-доступ корпуса. Здесь решается всё: от зачисления (добавить пользователя) до отчисления (удалить пользователя). Войти можно — но осторожно.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Табличка', 'Дверь', 'Кабинет', 'Расписание', 'Этаж', 'Центр'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
 
+        // ── ИГРОВАЯ ТОЧКА ─────────────────────────────────────────────────
         QuestTask(
           number: 4,
           title: 'Главная лестница',
-          description: 'Посчитай количество ступенек в первом пролёте от 1 этажа до первой площадки. Сколько их? (13 ступеней)',
-          hint: 'Путь наверх к знаниям. Найди главную лестницу, ведущую к аудиториям.',
+          description: 'Посчитай ступеньки в первом пролёте от 1 этажа до первой площадки. Сколько их? (13 ступеней)',
+          hint: 'Путь наверх к знаниям. Найди главную лестницу.',
           location: '1–2 этаж, лестница',
           icon: Icons.stairs_rounded,
-          locationStory: 'Аналоговый путь наверх. Говорят, каждый подъём по этой лестнице добавляет +1 к выносливости перед сессией. Проверено тысячами студентов.',
-          locationPhoto: null,  // ← ФОТО лестницы
+          locationStory: 'Аналоговый лифт. Каждый подъём добавляет +1 к выносливости перед сессией. Проверено тысячами студентов. А теперь — проверь свою память.',
+          locationPhoto: null,
+          // 👁️ Игра 1: Найди исчезнувшее — запомни детали лестницы
           miniGameType: MiniGameType.disappeared,
           miniGameItems: ['Перила', 'Ступень', 'Площадка', 'Пролёт', 'Поручень', 'Марш'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -118,12 +113,16 @@ class QuestData {
     ),
 
     // ════════════════════════════════════════════════════════════════════════
-    //  КВЕСТ 2 — «Код доступа: Железо» (Технический)
+    //  КВЕСТ 2 — «Код доступа: Железо»
+    //  Ты освоился. Пора узнать из чего сделан этот корпус.
+    //  Игра: «Пятнашки» — собери картинку как разбирают железо
     // ════════════════════════════════════════════════════════════════════════
     Quest(
       id: 'quest_2',
       title: 'Код доступа: Железо',
-      description: 'Исследуй ИТ-мощности корпуса — серверы, роботов и огромные мониторы.',
+      description: 'Доступ к техническому уровню получен. Б-корпус — это не просто стены. Это железо.',
+      storyIntro: 'Уровень 1 завершён. Открываю технический доступ...\nБ-корпус работает на реальном железе.\nНайди 4 точки где код обретает физическую форму.',
+      storyOutro: 'Железо изучено. Теперь ты знаешь что работает за стенами.\n\nУровень 2 — пройден. ✓',
       duration: '45 мин',
       difficulty: 'Средний',
       difficultyLevel: 2,
@@ -135,44 +134,46 @@ class QuestData {
         QuestTask(
           number: 1,
           title: 'Серверная',
-          description: 'Какой номер на двери серверной? Подсказка: это 110²',
-          hint: 'Ищи дверь, из-за которой доносится гул вентиляторов. Здесь хранятся данные.',
+          description: 'Какой номер на двери серверной? Подсказка: это 110 в квадрате.',
+          hint: 'Ищи дверь, из-за которой доносится гул вентиляторов на первом этаже.',
           location: '1 этаж, техническое крыло',
           icon: Icons.dns_rounded,
-          locationStory: 'Сердце сети. Здесь поддерживается арктический холод, чтобы серверы школы не превратились в обогреватели. Температура — строго 18–20°C.',
-          locationPhoto: null,  // ← ФОТО решётки на двери серверной
-          miniGameType: MiniGameType.disappeared,
-          miniGameItems: ['Сервер', 'Решётка', 'Замок', 'Вентилятор', 'Кабель', 'Стойка'],
+          locationStory: 'Сердце сети. Здесь поддерживается арктический холод — серверы не должны перегреться. Все твои учебные данные хранятся именно здесь.',
+          locationPhoto: null,
+          miniGameType: MiniGameType.none,
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
 
+        // ── ИГРОВАЯ ТОЧКА ─────────────────────────────────────────────────
         QuestTask(
           number: 2,
           title: 'Лаборатория робототехники',
           description: 'Посмотри через стекло. Какого цвета элементы у ближайшего робота-манипулятора?',
-          hint: 'Место, где код оживляет механизмы. Ищи лабораторию по 3D-принтерам за стеклом.',
+          hint: 'Место где код оживляет механизмы. Ищи лабораторию с 3D-принтерами за стеклом.',
           location: 'Лаборатория робототехники',
           icon: Icons.precision_manufacturing_rounded,
-          locationStory: 'Место, где код обретает физическую форму. Здесь студенты учат железо думать и двигаться. 3D-принтеры работают круглосуточно над учебными проектами.',
-          locationPhoto: null,  // ← ФОТО манипулятора или 3D-принтера
-          miniGameType: MiniGameType.disappeared,
+          locationStory: 'Здесь код обретает физическую форму. Студенты учат железо думать и двигаться. А ты — собери его обратно.',
+          locationPhoto: null,
+          // 🧩 Игра 2: Пятнашки — собери фото лаборатории
+          miniGameType: MiniGameType.puzzle,
           miniGameItems: ['Принтер', 'Манипулятор', 'Филамент', 'Модель', 'Стол', 'Сопло'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
-          puzzlePhoto: 'assets/images/puzzle_photo.jpg',
+          puzzlePhoto: 'assets/images/puzzle_photo.jpg',  // ← ЗАМЕНИ на фото лаборатории
         ),
 
         QuestTask(
           number: 3,
           title: 'Аудитория ИИ (Киберполигон)',
           description: 'Сколько дверей ведёт в эту аудиторию? (2 двери)',
-          hint: 'Здесь обучают ИИ и проводят киберспортивные турниры. Ориентируйся по табличке.',
+          hint: 'Здесь обучают ИИ и проводят киберспортивные турниры.',
           location: 'Аудитория киберполигона',
           icon: Icons.security_rounded,
-          locationStory: 'Здесь тренируются будущие защитники сетей и создатели нейросетей. Вечерами тут часто «фармят» победы в киберспортивных дисциплинах. Две двери — два пути к знаниям.',
-          locationPhoto: null,  // ← ФОТО логотипа на двери или системника
+          locationStory: 'Тренировочный полигон. Нейросети, кибербезопасность, киберспорт. Два входа — на случай если один заблокируют.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Монитор', 'Клавиатура', 'Мышь', 'Кресло', 'Наушники', 'Экран'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -180,14 +181,14 @@ class QuestData {
         QuestTask(
           number: 4,
           title: 'Кабинет с Ультра-монитором',
-          description: 'Найди огромный экран, за которым можно смотреть фильм. На каком этаже эта аудитория? (4 этаж)',
-          hint: 'Эта аудитория самая большая в корпусе, находится на самом высоком этаже.',
+          description: 'Найди огромный экран для просмотра фильмов. На каком этаже эта аудитория? (4 этаж)',
+          hint: 'Самая большая аудитория корпуса, на самом высоком этаже.',
           location: '4 этаж, большой зал',
           icon: Icons.tv_rounded,
-          locationStory: 'Легендарное место, где проводят встречи для всех гостей ВУЗа и организовывают просмотр фильмов. Экран настолько большой, что виден с любого места в зале.',
-          locationPhoto: 'assets/images/quest4.jpg',  // ← ФОТО огромного монитора
+          locationStory: 'Легендарный экран. Виден с любого места в зале. Здесь проводят встречи для гостей ВУЗа и смотрят фильмы всем потоком.',
+          locationPhoto: 'assets/images/quest4.jpg',
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Монитор', 'Экран', 'Зал', 'Кресло', 'Проектор', 'Трибуна'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -196,12 +197,16 @@ class QuestData {
     ),
 
     // ════════════════════════════════════════════════════════════════════════
-    //  КВЕСТ 3 — «Режим отладки (Debug)» (Отдых)
+    //  КВЕСТ 3 — «Режим отладки (Debug)»
+    //  Система перегрета. Найди точки подзарядки.
+    //  Игра: «Коридорный раннер» — беги как на дедлайне
     // ════════════════════════════════════════════════════════════════════════
     Quest(
       id: 'quest_3',
       title: 'Режим отладки (Debug)',
-      description: 'Найди все точки релакса и подзарядки — места где можно перезагрузиться.',
+      description: 'Система перегрета. Требуется перезагрузка. Найди 4 точки подзарядки — для себя и ноутбука.',
+      storyIntro: 'Внимание: перегрев системы.\nТребуется отладка и перезапуск.\nНайди зоны восстановления в корпусе.',
+      storyOutro: 'Перезагрузка завершена. Батарея заряжена.\nСистема стабилизирована.\n\nУровень 3 — пройден. ✓',
       duration: '35 мин',
       difficulty: 'Новичок',
       difficultyLevel: 1,
@@ -213,14 +218,14 @@ class QuestData {
         QuestTask(
           number: 1,
           title: 'Главный коворкинг',
-          description: 'Сколько столов находится в зоне отдыха? Совмещённые столы считай отдельно. (10 столов)',
-          hint: 'Здесь кипит командная работа над проектами. Ищи зону с мягкой мебелью.',
+          description: 'Сколько столов в зоне отдыха? Совмещённые считай отдельно. (10 столов)',
+          hint: 'Здесь кипит командная работа. Ищи зону с мягкой мебелью.',
           location: '1 этаж, коворкинг',
           icon: Icons.groups_rounded,
-          locationStory: 'Пространство для командных брейнштормов. Здесь зародилось больше стартапов, чем в гаражах Кремниевой долины. Удобные столы, маркерные доски, быстрый Wi-Fi.',
-          locationPhoto: 'assets/images/pairs_board4.jpg',  // ← ФОТО коворкинга
+          locationStory: 'Пространство для брейнштормов. Здесь зародилось больше стартапов, чем в гаражах Кремниевой долины. Удобные столы, маркерные доски, быстрый Wi-Fi.',
+          locationPhoto: 'assets/images/pairs_board4.jpg',
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Стол', 'Пуфик', 'Доска', 'Стул', 'Розетка', 'Wi-Fi'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -228,14 +233,14 @@ class QuestData {
         QuestTask(
           number: 2,
           title: 'Читальный зал',
-          description: 'Сколько высоких «барных» стульев стоит у окна в этом зале?',
-          hint: 'Самое тихое место для концентрации на самом верхнем этаже корпуса.',
+          description: 'Сколько высоких «барных» стульев стоит у окна?',
+          hint: 'Самое тихое место на самом верхнем этаже корпуса.',
           location: '4 этаж, читальный зал',
           icon: Icons.menu_book_rounded,
-          locationStory: 'Зона тишины. Место для тех, кому нужно войти в состояние «потока» и чтобы никто не отвлекал уведомлениями. Панорамный вид на город прилагается.',
-          locationPhoto: null,  // ← ФОТО барной стойки или стульев
+          locationStory: 'Зона тишины. Режим потока. Никаких уведомлений. Только ты и задача. Панорамный вид на город прилагается.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Стул', 'Стол', 'Книга', 'Окно', 'Полка', 'Тишина'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -247,24 +252,26 @@ class QuestData {
           hint: 'Секретное место для отдыха на 2 этаже. Идеально для подзарядки ноутбука.',
           location: '2 этаж, зона отдыха',
           icon: Icons.weekend_rounded,
-          locationStory: 'Секретный хаб для подзарядки ноутбуков и обмена слухами о предстоящих зачётах. Диваны мягкие — засыпать не рекомендуется, хотя многие пробовали.',
-          locationPhoto: null,  // ← ФОТО дивана или розетки
+          locationStory: 'Секретный хаб. Мягкие диваны, розетки, слухи о предстоящих зачётах. Засыпать не рекомендуется — хотя многие пробовали.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Диван', 'Розетка', 'Подушка', 'Зарядка', 'Ноутбук', 'Стена'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
 
+        // ── ИГРОВАЯ ТОЧКА ─────────────────────────────────────────────────
         QuestTask(
           number: 4,
           title: 'Кофе-автомат',
           description: 'Сколько стоит большинство напитков в автомате? (100 рублей)',
-          hint: 'Источник энергии для программиста. Ищи его в углу на первом этаже.',
+          hint: 'Главный топливный бак корпуса. Ищи на первом этаже.',
           location: '1 этаж, кофе-автомат',
           icon: Icons.local_cafe_rounded,
-          locationStory: 'Главный «топливный бак» корпуса. Программист — это организм, перерабатывающий кофе в программный код. Работает круглосуточно, никогда не ломается.',
-          locationPhoto: null,  // ← ФОТО кофе-автомата
-          miniGameType: MiniGameType.disappeared,
+          locationStory: 'Программист — организм, перерабатывающий кофе в код. Автомат работает круглосуточно. А теперь — беги по коридору за зачётками!',
+          locationPhoto: null,
+          // 🎓 Игра 3: Коридорный раннер — беги по коридору корпуса
+          miniGameType: MiniGameType.runner,
           miniGameItems: ['Кофе', 'Кнопка', 'Стакан', 'Монета', 'Экран', 'Сахар'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -274,12 +281,16 @@ class QuestData {
     ),
 
     // ════════════════════════════════════════════════════════════════════════
-    //  КВЕСТ 4 — «Cyber Life» (Исследовательский)
+    //  КВЕСТ 4 — «Cyber Life»
+    //  Стандартный маршрут пройден. Время изучить скрытые уровни.
+    //  Игра: «Межпланетный прыжок» — прыгай точно как ищешь пасхалки
     // ════════════════════════════════════════════════════════════════════════
     Quest(
       id: 'quest_4',
       title: 'Cyber Life',
-      description: 'Найди самые необычные и скрытые локации корпуса — от игровой до панорамного окна.',
+      description: 'Стандартный маршрут пройден. Время изучить скрытые уровни. В любой системе есть пасхалки.',
+      storyIntro: 'Все стандартные локации изучены.\nОткрываю скрытый контент...\nВ любой хорошей системе есть пасхалки.\nНайди их.',
+      storyOutro: 'Скрытые уровни найдены.\nТы знаешь больше чем большинство.\n\nУровень 4 — пройден. ✓',
       duration: '50 мин',
       difficulty: 'Средний',
       difficultyLevel: 2,
@@ -291,14 +302,14 @@ class QuestData {
         QuestTask(
           number: 1,
           title: 'Спуск в игровую',
-          description: 'Сколько ступенек ведёт вниз в игровую зону?',
-          hint: 'Путь в зону развлечений лежит через эти ступени. Найди спуск вниз.',
+          description: 'Сколько ступеней ведёт вниз в игровую зону?',
+          hint: 'Путь в зону развлечений лежит через ступени вниз. Найди спуск.',
           location: 'Цоколь, лестница вниз',
           icon: Icons.arrow_downward_rounded,
-          locationStory: 'Путь в цоколь — переход из учебной реальности в игровую. Один спуск отделяет мир дедлайнов от мира развлечений.',
-          locationPhoto: null,  // ← ФОТО поручня лестницы вниз
+          locationStory: 'Переход из учебной реальности в игровую. Один спуск отделяет мир дедлайнов от мира развлечений.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Ступень', 'Поручень', 'Спуск', 'Цоколь', 'Пролёт', 'Перила'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -306,14 +317,14 @@ class QuestData {
         QuestTask(
           number: 2,
           title: 'Игровая комната',
-          description: 'Найди зелёные трубы (как в Марио). Из скольких этажей состоит эта аудитория? (2 этажа)',
-          hint: 'Здесь люди играют в настольные игры и не только. Ищи двухэтажную аудиторию.',
+          description: 'Найди зелёные трубы как в Марио. Из скольких этажей состоит эта аудитория? (2 этажа)',
+          hint: 'Двухэтажная аудитория с трубами. Главная пасхалка корпуса.',
           location: 'Цоколь, игровая комната',
           icon: Icons.sports_esports_rounded,
-          locationStory: 'Пространство для отдыха. Зелёные трубы — символ того, что в ИТ всегда есть скрытые уровни и пасхалки. Эта аудитория в два этажа — главная пасхалка корпуса.',
-          locationPhoto: null,  // ← ФОТО зелёных труб
-          miniGameType: MiniGameType.disappeared,
-          miniGameItems: ['Труба', 'Игра', 'Этаж', 'Стол', 'Контроллер', 'Экран'],
+          locationStory: 'В ИТ всегда есть скрытые уровни и пасхалки. Эта аудитория в два этажа — главная пасхалка всего корпуса.',
+          locationPhoto: null,
+          miniGameType: MiniGameType.none,
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -325,25 +336,27 @@ class QuestData {
           hint: 'Здесь снимаются интересные люди. Ищи напротив игровой комнаты.',
           location: 'Напротив игровой, медиа-студия',
           icon: Icons.videocam_rounded,
-          locationStory: 'Зал для съёмок ток-шоу. Здесь записываются интервью с лидерами индустрии. Место, где создаётся цифровой контент школы. Кресла с особенными подлокотниками.',
-          locationPhoto: null,  // ← ФОТО рядов кресел
+          locationStory: 'Зал для съёмок ток-шоу. Здесь записываются интервью с лидерами индустрии. Место где создаётся цифровой контент школы.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Кресло', 'Камера', 'Ряд', 'Микрофон', 'Свет', 'Сцена'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
 
+        // ── ИГРОВАЯ ТОЧКА ─────────────────────────────────────────────────
         QuestTask(
           number: 4,
           title: 'Панорамное окно',
-          description: 'Что видно прямо по центру из окна 4 этажа?\n1) Реку Волгу  2) Другой корпус  3) Лес  4) Парк',
-          hint: 'Найди окно на 4 этаже, там же где барные стулья — с лучшим видом на Волгу.',
+          description: 'Что видно по центру из окна 4 этажа?\n1) Реку Волгу  2) Другой корпус  3) Лес  4) Парк',
+          hint: 'Найди окно на 4 этаже, там же где барные стулья.',
           location: '4 этаж, панорамное окно',
           icon: Icons.window_rounded,
-          locationStory: 'Точка обзора с лучшим видом в корпусе. Идеальное место, чтобы отвлечься от монитора и дать глазам отдохнуть. 20–20–20: каждые 20 минут смотри 20 секунд вдаль на 20 метров.',
-          locationPhoto: null,  // ← ФОТО вида из окна
-          miniGameType: MiniGameType.none,
-          miniGameItems: ['Окно', 'Волга', 'Вид', 'Горизонт', 'Небо', 'Панорама'],
+          locationStory: 'Лучший вид в корпусе. Дай глазам отдохнуть от мониторов. А теперь — прыгай точно как ищешь пасхалки в коде!',
+          locationPhoto: null,
+          // 🚀 Игра 4: Межпланетный прыжок — прыгай по этажам-планетам
+          miniGameType: MiniGameType.planetHop,
+          miniGameItems: ['Окно', 'Волга', 'Вид', 'Этаж', 'Небо', 'Панорама'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -352,12 +365,16 @@ class QuestData {
     ),
 
     // ════════════════════════════════════════════════════════════════════════
-    //  КВЕСТ 5 — «Путь к диплому» (Административный)
+    //  КВЕСТ 5 — «Путь к диплому»
+    //  Финальный уровень. Система проверяет готовность.
+    //  Игра: «Найди пары» — сопоставь знания о корпусе
     // ════════════════════════════════════════════════════════════════════════
     Quest(
       id: 'quest_5',
       title: 'Путь к диплому',
-      description: 'Финальный маршрут — пройди путь от главной вывески до конференц-зала.',
+      description: 'Финальный уровень. Система проверяет готовность. Пройди последний маршрут — от вывески до диплома.',
+      storyIntro: 'Финальная проверка запущена.\nВсе предыдущие уровни учтены.\nПройди последний маршрут.\nСистема запоминает всё.',
+      storyOutro: 'Поздравляем.\nВсе уровни пройдены.\nБ-корпус больше не чужой — это твой дом.\n\nДобро пожаловать в систему. Навсегда. ✓',
       duration: '40 мин',
       difficulty: 'Сложный',
       difficultyLevel: 3,
@@ -368,29 +385,31 @@ class QuestData {
 
         QuestTask(
           number: 1,
-          title: 'Главная вывеска (Логотип)',
+          title: 'Главная вывеска',
           description: 'Сколько букв на главной вывеске корпуса?',
           hint: 'Вывеска находится на крыше крыльца при входе в здание.',
           location: 'Крыльцо, главная вывеска',
           icon: Icons.emoji_events_rounded,
-          locationStory: 'Этой вывеской была положена новая история айтишников КГУ. Каждая буква — символ нового поколения разработчиков, дизайнеров и инженеров.',
-          locationPhoto: null,  // ← ФОТО вывески
+          locationStory: 'Этой вывеской была открыта новая история айтишников КГУ. Каждая буква — символ нового поколения разработчиков, дизайнеров, инженеров.',
+          locationPhoto: null,
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Буква', 'Вывеска', 'Логотип', 'Крыша', 'Крыльцо', 'Школа'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
 
+        // ── ИГРОВАЯ ТОЧКА ─────────────────────────────────────────────────
         QuestTask(
           number: 2,
-          title: 'Фото активистов',
-          description: 'Найди место с фото самых активных ребят из нашего института. Запомни все детали!',
+          title: 'Галерея активистов',
+          description: 'Найди место с фото самых активных ребят из нашего института. Запомни все лица!',
           hint: 'Ищи на втором этаже напротив одной из лестниц.',
           location: '2 этаж, галерея',
           icon: Icons.photo_library_rounded,
-          locationStory: 'Галерея лучших студентов — гордость факультета. Здесь лица тех, кто уже оставил след в истории школы. Может быть, однажды здесь окажется и твоё фото.',
-          locationPhoto: 'assets/images/quest3.jpg',  // ← ФОТО галереи активистов
-          miniGameType: MiniGameType.disappeared,
+          locationStory: 'Лица тех, кто уже оставил след в истории школы. Однажды здесь окажется и твоё фото. А пока — найди все пары.',
+          locationPhoto: 'assets/images/quest3.jpg',
+          // 🃏 Игра 5: Найди пары — сопоставь фото мест корпуса
+          miniGameType: MiniGameType.pairs,
           miniGameItems: ['Фото', 'Рамка', 'Лицо', 'Подпись', 'Стена', 'Портрет'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -399,14 +418,14 @@ class QuestData {
         QuestTask(
           number: 3,
           title: 'Конференц-зал',
-          description: 'Найди главный конференц-зал, где проходят защиты и все важные события.',
+          description: 'Найди главный зал где проходят защиты и все важные события.',
           hint: 'Место решающих битв за диплом. Самый большой зал в корпусе.',
           location: '4 этаж, конференц-зал',
           icon: Icons.theater_comedy_rounded,
-          locationStory: 'Здесь проходят посвящения в студенты, вручения дипломов, конференции и встречи с гостями ВУЗа. Зал вмещает весь поток — это финальная точка пути к диплому.',
-          locationPhoto: 'assets/images/quest4.jpg',  // ← ФОТО конференц-зала
+          locationStory: 'Посвящения, вручения дипломов, конференции. Всё важное — здесь. Это финальная точка пути каждого студента.',
+          locationPhoto: 'assets/images/quest4.jpg',
           miniGameType: MiniGameType.none,
-          miniGameItems: ['Трибуна', 'Кресло', 'Экран', 'Ряд', 'Диплом', 'Зал'],
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -414,14 +433,14 @@ class QuestData {
         QuestTask(
           number: 4,
           title: 'Стенд для выпускников',
-          description: 'Найди стенд с информацией о защитах и практиках для выпускников.',
+          description: 'Найди стенд с информацией о защитах и практиках рядом с деканатом.',
           hint: 'Ищи специальный стенд рядом с деканатом на 2 этаже.',
           location: '2 этаж, рядом с деканатом',
           icon: Icons.info_rounded,
-          locationStory: 'Последний рубеж перед дипломом. На этом стенде — всё что нужно знать о защите: сроки, требования, контакты комиссии. Читай внимательно.',
-          locationPhoto: null,  // ← ФОТО стенда
-          miniGameType: MiniGameType.disappeared,
-          miniGameItems: ['Стенд', 'Объявление', 'Диплом', 'Дата', 'Кафедра', 'Приказ'],
+          locationStory: 'Последний рубеж перед дипломом. Здесь всё что нужно знать о защите: сроки, требования, контакты комиссии. Читай внимательно.',
+          locationPhoto: null,
+          miniGameType: MiniGameType.none,
+          miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
         ),
@@ -435,12 +454,23 @@ class QuestData {
 // ─── Модели ──────────────────────────────────────────────────────────────
 class Quest {
   final String id, title, description, duration, difficulty, emoji;
+  final String storyIntro;   // текст перед началом квеста
+  final String storyOutro;   // текст после завершения квеста
   final int difficultyLevel, taskCount, xpReward;
   final List<QuestTask> tasks;
+
   const Quest({
-    required this.id, required this.title, required this.description,
-    required this.duration, required this.difficulty, required this.difficultyLevel,
-    required this.taskCount, required this.xpReward, required this.emoji,
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.storyIntro,
+    required this.storyOutro,
+    required this.duration,
+    required this.difficulty,
+    required this.difficultyLevel,
+    required this.taskCount,
+    required this.xpReward,
+    required this.emoji,
     required this.tasks,
   });
 }
@@ -450,30 +480,15 @@ class QuestTask {
   final String title, description, hint, location;
   final IconData icon;
   final MiniGameType miniGameType;
-
-  // ── Предметы для игры «Найди исчезнувшее» и «Собери слово» ───────────────
   final List<String> miniGameItems;
-
-  // ── Фото для игры «Найди исчезнувшее» (если указаны — вместо слов) ───────
   final List<String> disappearedPhotos;
-
-  // ── Фото места (показывается на экране задания) ───────────────────────────
-  // ✏️ МЕНЯЙ: locationPhoto = 'assets/images/location_entrance.jpg'
   final String? locationPhoto;
-
-  // ── Текст описания места ──────────────────────────────────────────────────
-  // ✏️ МЕНЯЙ: расскажи что интересного в этом месте
   final String? locationStory;
-
-  // ── Фото для игры «Найди пары» ────────────────────────────────────────────
-  // ✏️ МЕНЯЙ: добавь 4–6 путей к фото
   final List<String> pairPhotos;
-
-  // ── Фото для игры «Пятнашки» ─────────────────────────────────────────────
-  // ✏️ МЕНЯЙ: одно фото, которое нарежется на 12 кусочков
   final String? puzzlePhoto;
 
-  bool get hasMiniGame => miniGameType == MiniGameType.disappeared;
+  // true если у задания есть игра
+  bool get hasMiniGame => miniGameType != MiniGameType.none;
 
   List<String> get disappearedItems =>
       disappearedPhotos.isNotEmpty ? disappearedPhotos : miniGameItems;
@@ -481,10 +496,16 @@ class QuestTask {
   List<String> get puzzlePhotos => puzzlePhoto != null ? [puzzlePhoto!] : [];
 
   const QuestTask({
-    required this.number, required this.title, required this.description,
-    required this.hint, required this.location, required this.icon,
-    required this.miniGameType, required this.miniGameItems,
-    this.locationPhoto, this.locationStory,
+    required this.number,
+    required this.title,
+    required this.description,
+    required this.hint,
+    required this.location,
+    required this.icon,
+    required this.miniGameType,
+    required this.miniGameItems,
+    this.locationPhoto,
+    this.locationStory,
     this.pairPhotos = const [],
     this.puzzlePhoto,
     this.disappearedPhotos = const [],

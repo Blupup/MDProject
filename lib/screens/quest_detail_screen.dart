@@ -112,8 +112,102 @@ class QuestDetailScreen extends StatelessWidget {
         child: GradientButton(
           text: 'Начать квест',
           icon: Icons.play_arrow_rounded,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuestExecutionScreen(quest: quest))),
+          onTap: () => _showStoryIntro(context),
           height: 62,
+        ),
+      ),
+    );
+  }
+
+  void _showStoryIntro(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF151A3A), Color(0xFF1E2344)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: kGreen.withOpacity(0.4), width: 1.5),
+            boxShadow: [BoxShadow(color: kGreen.withOpacity(0.15), blurRadius: 30)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Иконка терминала
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: kGreen.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kGreen.withOpacity(0.4)),
+                ),
+                child: const Icon(Icons.terminal_rounded, color: kGreen, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(quest.emoji,
+                  style: const TextStyle(fontSize: 36)),
+              const SizedBox(height: 8),
+              Text(quest.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+              const SizedBox(height: 16),
+              // Текст в стиле терминала
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kGreen.withOpacity(0.2)),
+                ),
+                child: Text(
+                  '> ${quest.storyIntro.replaceAll('\n', '\n> ')}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: kGreen,
+                    fontFamily: 'monospace',
+                    height: 1.7,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.white.withOpacity(0.15))),
+                    ),
+                    child: Text('Назад',
+                        style: TextStyle(color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GradientButton(
+                    text: 'Начать',
+                    icon: Icons.rocket_launch_rounded,
+                    height: 50,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => QuestExecutionScreen(quest: quest)));
+                    },
+                  ),
+                ),
+              ]),
+            ],
+          ),
         ),
       ),
     );

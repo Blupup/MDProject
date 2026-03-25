@@ -5,7 +5,11 @@ import '../data/quest_data.dart';
 import '../data/app_state.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/confetti_widget.dart';
-import 'game_selection_screen.dart';
+import '../game/disappeared_game.dart';
+import '../game/puzzle_game.dart';
+import '../game/corridor_runner_game.dart';
+import '../game/planet_hop_game.dart';
+import '../game/memory_pairs_game.dart';
 
 class QuestExecutionScreen extends StatefulWidget {
   final Quest quest;
@@ -54,20 +58,35 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
 
   void _onComplete() {
     if (_task.hasMiniGame) {
-      // → Открываем экран выбора игры
+      // Запускаем игру напрямую по типу — без экрана выбора
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => GameSelectionScreen(
-            task: _task,
-            onSuccess: _onGameSuccess,
-            onFail: _onGameFail,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => _buildGame(_task)),
       );
     } else {
       _markDone();
     }
+  }
+
+  Widget _buildGame(QuestTask task) {
+    void ok()   { Navigator.pop(context); _onGameSuccess(); }
+    void fail() { Navigator.pop(context); _onGameFail(); }
+
+    return switch (task.miniGameType) {
+      MiniGameType.disappeared => DisappearedGame(
+          items: task.disappearedItems, onSuccess: ok, onFail: fail),
+      MiniGameType.puzzle      => PuzzleGame(
+          items: task.puzzlePhotos, onSuccess: ok, onFail: fail),
+      MiniGameType.runner      => CorridorRunnerGame(
+          onSuccess: ok, onFail: fail),
+      MiniGameType.planetHop   => PlanetHopGame(
+          onSuccess: ok, onFail: fail),
+      MiniGameType.pairs       => MemoryPairsGame(
+          items: task.pairPhotos.isNotEmpty ? task.pairPhotos : task.miniGameItems,
+          onSuccess: ok, onFail: fail),
+      MiniGameType.none        => DisappearedGame(
+          items: task.disappearedItems, onSuccess: ok, onFail: fail),
+    };
   }
 
   void _markDone() {
@@ -463,10 +482,10 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
         Expanded(child: GradientButton(
           text: _taskDone
               ? (isLast ? 'Завершить квест 🎉' : 'Следующее задание')
-              : (_task.hasMiniGame ? 'Выбрать мини-игру 🎮' : 'Я нашёл это место ✓'),
+              : (_task.hasMiniGame ? _gameButtonLabel(_task.miniGameType) : 'Я нашёл это место ✓'),
           icon: _taskDone
               ? (isLast ? Icons.celebration_rounded : Icons.arrow_forward_rounded)
-              : (_task.hasMiniGame ? Icons.videogame_asset_rounded : Icons.check_rounded),
+              : (_task.hasMiniGame ? _gameButtonIcon(_task.miniGameType) : Icons.check_rounded),
           onTap: _taskDone ? _next : _onComplete,
           colors: _taskDone
               ? [const Color(0xFF2E7D32), const Color(0xFF4CAF50)]
@@ -478,6 +497,24 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
       ]),
     );
   }
+
+  String _gameButtonLabel(MiniGameType type) => switch (type) {
+    MiniGameType.disappeared => 'Играть: Найди исчезнувшее 👁️',
+    MiniGameType.puzzle      => 'Играть: Пятнашки 🧩',
+    MiniGameType.runner      => 'Играть: Коридорный раннер 🎓',
+    MiniGameType.planetHop   => 'Играть: Межпланетный прыжок 🚀',
+    MiniGameType.pairs       => 'Играть: Найди пары 🃏',
+    MiniGameType.none        => 'Я нашёл это место ✓',
+  };
+
+  IconData _gameButtonIcon(MiniGameType type) => switch (type) {
+    MiniGameType.disappeared => Icons.visibility_off_rounded,
+    MiniGameType.puzzle      => Icons.grid_view_rounded,
+    MiniGameType.runner      => Icons.directions_run_rounded,
+    MiniGameType.planetHop   => Icons.rocket_launch_rounded,
+    MiniGameType.pairs       => Icons.photo_library_rounded,
+    MiniGameType.none        => Icons.check_rounded,
+  };
 
   void _showHint() {
     showDialog(context: context, builder: (_) => Dialog(
@@ -571,6 +608,27 @@ class _CompletionDialogState extends State<_CompletionDialog> with SingleTickerP
                 Container(width: 1, height: 44, color: Colors.white.withOpacity(0.08)),
                 _stat('✅', '${widget.quest.taskCount}/${widget.quest.taskCount}', 'Задания'),
               ]),
+            ),
+            const SizedBox(height: 22),
+            // Финальный текст истории
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kGreen.withOpacity(0.25)),
+              ),
+              child: Text(
+                '> ${widget.quest.storyOutro.replaceAll('\n', '\n> ')}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: kGreen,
+                  fontFamily: 'monospace',
+                  height: 1.6,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             const SizedBox(height: 22),
             SizedBox(width: double.infinity,
