@@ -5,11 +5,11 @@ import '../data/quest_data.dart';
 import '../data/app_state.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/confetti_widget.dart';
-import '../game/disappeared_game.dart';
-import '../game/puzzle_game.dart';
-import '../game/corridor_runner_game.dart';
-import '../game/planet_hop_game.dart';
-import '../game/memory_pairs_game.dart';
+import '../game/neon_ray_game.dart';
+import '../game/mechanical_lotus_game.dart';
+import '../game/particle_alchemy_game.dart';
+import '../game/shadow_escape_game.dart';
+import '../game/star_drift_game.dart';
 
 class QuestExecutionScreen extends StatefulWidget {
   final Quest quest;
@@ -73,19 +73,12 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
     void fail() { Navigator.pop(context); _onGameFail(); }
 
     return switch (task.miniGameType) {
-      MiniGameType.disappeared => DisappearedGame(
-          items: task.disappearedItems, onSuccess: ok, onFail: fail),
-      MiniGameType.puzzle      => PuzzleGame(
-          items: task.puzzlePhotos, onSuccess: ok, onFail: fail),
-      MiniGameType.runner      => CorridorRunnerGame(
-          onSuccess: ok, onFail: fail),
-      MiniGameType.planetHop   => PlanetHopGame(
-          onSuccess: ok, onFail: fail),
-      MiniGameType.pairs       => MemoryPairsGame(
-          items: task.pairPhotos.isNotEmpty ? task.pairPhotos : task.miniGameItems,
-          onSuccess: ok, onFail: fail),
-      MiniGameType.none        => DisappearedGame(
-          items: task.disappearedItems, onSuccess: ok, onFail: fail),
+      MiniGameType.neonRay         => NeonRayGame(onSuccess: ok, onFail: fail),
+      MiniGameType.mechanicalLotus => MechanicalLotusGame(onSuccess: ok, onFail: fail),
+      MiniGameType.particleAlchemy => ParticleAlchemyGame(onSuccess: ok, onFail: fail),
+      MiniGameType.shadowEscape    => ShadowEscapeGame(onSuccess: ok, onFail: fail),
+      MiniGameType.starDrift       => StarDriftGame(onSuccess: ok, onFail: fail),
+      MiniGameType.none            => NeonRayGame(onSuccess: ok, onFail: fail),
     };
   }
 
@@ -499,21 +492,21 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   }
 
   String _gameButtonLabel(MiniGameType type) => switch (type) {
-    MiniGameType.disappeared => 'Играть: Найди исчезнувшее 👁️',
-    MiniGameType.puzzle      => 'Играть: Пятнашки 🧩',
-    MiniGameType.runner      => 'Играть: Коридорный раннер 🎓',
-    MiniGameType.planetHop   => 'Играть: Межпланетный прыжок 🚀',
-    MiniGameType.pairs       => 'Играть: Найди пары 🃏',
-    MiniGameType.none        => 'Я нашёл это место ✓',
+    MiniGameType.neonRay         => 'Играть: Неоновый луч 🔦',
+    MiniGameType.mechanicalLotus => 'Играть: Механический лотос ⚙️',
+    MiniGameType.particleAlchemy => 'Играть: Алхимия частиц 💫',
+    MiniGameType.shadowEscape    => 'Играть: Побег тени 👾',
+    MiniGameType.starDrift       => 'Играть: Звёздный дрифт 🚀',
+    MiniGameType.none            => 'Я нашёл это место ✓',
   };
 
   IconData _gameButtonIcon(MiniGameType type) => switch (type) {
-    MiniGameType.disappeared => Icons.visibility_off_rounded,
-    MiniGameType.puzzle      => Icons.grid_view_rounded,
-    MiniGameType.runner      => Icons.directions_run_rounded,
-    MiniGameType.planetHop   => Icons.rocket_launch_rounded,
-    MiniGameType.pairs       => Icons.photo_library_rounded,
-    MiniGameType.none        => Icons.check_rounded,
+    MiniGameType.neonRay         => Icons.flashlight_on_rounded,
+    MiniGameType.mechanicalLotus => Icons.settings_rounded,
+    MiniGameType.particleAlchemy => Icons.auto_awesome_rounded,
+    MiniGameType.shadowEscape    => Icons.dark_mode_rounded,
+    MiniGameType.starDrift       => Icons.rocket_launch_rounded,
+    MiniGameType.none            => Icons.check_rounded,
   };
 
   void _showHint() {

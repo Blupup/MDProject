@@ -23,7 +23,7 @@
 
 import 'package:flutter/material.dart';
 
-enum MiniGameType { none, disappeared, puzzle, runner, planetHop, pairs }
+enum MiniGameType { none, neonRay, mechanicalLotus, particleAlchemy, shadowEscape, starDrift }
 
 class QuestData {
   static final List<Quest> quests = [
@@ -102,8 +102,8 @@ class QuestData {
           icon: Icons.stairs_rounded,
           locationStory: 'Аналоговый лифт. Каждый подъём добавляет +1 к выносливости перед сессией. Проверено тысячами студентов. А теперь — проверь свою память.',
           locationPhoto: null,
-          // 👁️ Игра 1: Найди исчезнувшее — запомни детали лестницы
-          miniGameType: MiniGameType.disappeared,
+          // 🔦 Игра 1: Неоновый луч — найди путь как новичок
+          miniGameType: MiniGameType.neonRay,
           miniGameItems: ['Перила', 'Ступень', 'Площадка', 'Пролёт', 'Поручень', 'Марш'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -156,8 +156,8 @@ class QuestData {
           icon: Icons.precision_manufacturing_rounded,
           locationStory: 'Здесь код обретает физическую форму. Студенты учат железо думать и двигаться. А ты — собери его обратно.',
           locationPhoto: null,
-          // 🧩 Игра 2: Пятнашки — собери фото лаборатории
-          miniGameType: MiniGameType.puzzle,
+          // ⚙️ Игра 2: Механический лотос — крути шестерни
+          miniGameType: MiniGameType.mechanicalLotus,
           miniGameItems: ['Принтер', 'Манипулятор', 'Филамент', 'Модель', 'Стол', 'Сопло'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',  // ← ЗАМЕНИ на фото лаборатории
@@ -270,8 +270,8 @@ class QuestData {
           icon: Icons.local_cafe_rounded,
           locationStory: 'Программист — организм, перерабатывающий кофе в код. Автомат работает круглосуточно. А теперь — беги по коридору за зачётками!',
           locationPhoto: null,
-          // 🎓 Игра 3: Коридорный раннер — беги по коридору корпуса
-          miniGameType: MiniGameType.runner,
+          // 💫 Игра 3: Алхимия частиц — отлаживай поток
+          miniGameType: MiniGameType.particleAlchemy,
           miniGameItems: ['Кофе', 'Кнопка', 'Стакан', 'Монета', 'Экран', 'Сахар'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -354,8 +354,8 @@ class QuestData {
           icon: Icons.window_rounded,
           locationStory: 'Лучший вид в корпусе. Дай глазам отдохнуть от мониторов. А теперь — прыгай точно как ищешь пасхалки в коде!',
           locationPhoto: null,
-          // 🚀 Игра 4: Межпланетный прыжок — прыгай по этажам-планетам
-          miniGameType: MiniGameType.planetHop,
+          // 👾 Игра 4: Побег тени — беги по скрытым уровням
+          miniGameType: MiniGameType.shadowEscape,
           miniGameItems: ['Окно', 'Волга', 'Вид', 'Этаж', 'Небо', 'Панорама'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -408,8 +408,8 @@ class QuestData {
           icon: Icons.photo_library_rounded,
           locationStory: 'Лица тех, кто уже оставил след в истории школы. Однажды здесь окажется и твоё фото. А пока — найди все пары.',
           locationPhoto: 'assets/images/quest3.jpg',
-          // 🃏 Игра 5: Найди пары — сопоставь фото мест корпуса
-          miniGameType: MiniGameType.pairs,
+          // 🌟 Игра 5: Звёздный дрифт — финальный забег к диплому
+          miniGameType: MiniGameType.starDrift,
           miniGameItems: ['Фото', 'Рамка', 'Лицо', 'Подпись', 'Стена', 'Портрет'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
