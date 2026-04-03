@@ -26,7 +26,7 @@ class _Layer {
 
   bool get aligned {
     final diff = ((angle - targetAngle) % (2 * pi)).abs();
-    return diff < 0.12 || diff > 2 * pi - 0.12;
+    return diff < 0.18 || diff > 2 * pi - 0.18;
   }
 }
 
@@ -265,10 +265,21 @@ class _MechanicalLotusGameState extends State<MechanicalLotusGame>
         },
         onPanEnd: (_) {
           if (_draggingLayer != null && _draggingLayer! >= 0) {
-            // Snap к ближайшему кратному π/6
+            // Snap: сначала проверяем близость к targetAngle, иначе — сетка π/12
             final layer = _currentLayers[_draggingLayer!];
-            final snapped = (layer.angle / (pi / 6)).round() * (pi / 6);
-            setState(() => layer.angle = snapped.toDouble());
+            double snapped;
+            // Нормализуем разницу с targetAngle
+            double diff = (layer.angle - layer.targetAngle) % (2 * pi);
+            if (diff < 0) diff += 2 * pi;
+            if (diff > pi) diff = diff - 2 * pi; // -π..π
+            if (diff.abs() < 0.35) {
+              // Близко к цели — прилипаем точно
+              snapped = layer.targetAngle;
+            } else {
+              // Иначе snap к мелкой сетке π/12 (15°)
+              snapped = (layer.angle / (pi / 12)).round() * (pi / 12);
+            }
+            setState(() => layer.angle = snapped);
             HapticFeedback.selectionClick();
             _checkWin();
           }
@@ -292,41 +303,66 @@ class _MechanicalLotusGameState extends State<MechanicalLotusGame>
 
   Widget _buildInstruction() {
     final aligned = _currentLayers.where((l) => l.aligned).length;
+    // Проверяем «почти совмещено» для каждого слоя
+    bool isNear(int i) {
+      final layer = _currentLayers[i];
+      double diff = (layer.angle - layer.targetAngle) % (2 * pi);
+      if (diff < 0) diff += 2 * pi;
+      if (diff > pi) diff = 2 * pi - diff;
+      return diff < 0.5 && !layer.aligned;
+    }
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       color: const Color(0xFF1A0F05),
-      child: Row(children: [
+      child: Column(children: [
         // Прогресс слоёв
-        ...List.generate(_currentLayers.length, (i) {
-          final ok = _currentLayers[i].aligned;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                color: ok ? const Color(0xFFDAA520).withOpacity(0.3) : Colors.white.withOpacity(0.05),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: ok ? const Color(0xFFDAA520) : Colors.white.withOpacity(0.15),
-                  width: 1.5,
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          ...List.generate(_currentLayers.length, (i) {
+            final ok = _currentLayers[i].aligned;
+            final near = isNear(i);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: ok   ? const Color(0xFFDAA520).withOpacity(0.25)
+                       : near ? Colors.orange.withOpacity(0.15)
+                              : Colors.white.withOpacity(0.04),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: ok   ? const Color(0xFFDAA520)
+                         : near ? Colors.orange.withOpacity(0.7)
+                                : Colors.white.withOpacity(0.12),
+                    width: 1.8,
+                  ),
+                  boxShadow: ok ? [BoxShadow(color: const Color(0xFFDAA520).withOpacity(0.4), blurRadius: 10)] : [],
                 ),
-              ),
-              child: Center(child: Text(ok ? '✓' : '${i + 1}',
+                child: Center(child: Text(
+                  ok ? '✓' : (near ? '~' : '${i + 1}'),
                   style: TextStyle(
-                    color: ok ? const Color(0xFFDAA520) : Colors.white38,
-                    fontSize: 12, fontWeight: FontWeight.w800,
-                  ))),
-            ),
-          );
-        }),
-        const SizedBox(width: 8),
-        Expanded(child: Text(
+                    color: ok ? const Color(0xFFDAA520) : (near ? Colors.orange : Colors.white30),
+                    fontSize: 13, fontWeight: FontWeight.w900,
+                  ),
+                )),
+              ),
+            );
+          }),
+        ]),
+        const SizedBox(height: 8),
+        Text(
           aligned == _currentLayers.length
-              ? 'Все слои совмещены!'
-              : 'Совмести все ${ _currentLayers.length} слоя — $aligned совмещено',
-          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.4), height: 1.4),
-        )),
+              ? '🌸 Все слои совмещены!'
+              : '↺ Крути слои пальцем — совмести метки с линией сверху',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: aligned == _currentLayers.length
+                ? const Color(0xFFDAA520)
+                : Colors.white.withOpacity(0.38),
+          ),
+        ),
       ]),
     );
   }
