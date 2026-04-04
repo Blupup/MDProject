@@ -23,7 +23,7 @@
 
 import 'package:flutter/material.dart';
 
-enum MiniGameType { none, neonRay, mechanicalLotus, particleAlchemy, shadowEscape, starDrift }
+enum MiniGameType { none, magicRunes, jellyTower, particleAlchemy, shadowEscape, starDrift }
 
 class QuestData {
   static final List<Quest> quests = [
@@ -103,7 +103,7 @@ class QuestData {
           locationStory: 'Аналоговый лифт. Каждый подъём добавляет +1 к выносливости перед сессией. Проверено тысячами студентов. А теперь — проверь свою память.',
           locationPhoto: null,
           // 🔦 Игра 1: Неоновый луч — найди путь как новичок
-          miniGameType: MiniGameType.neonRay,
+          miniGameType: MiniGameType.magicRunes,
           miniGameItems: ['Перила', 'Ступень', 'Площадка', 'Пролёт', 'Поручень', 'Марш'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -157,7 +157,7 @@ class QuestData {
           locationStory: 'Здесь код обретает физическую форму. Студенты учат железо думать и двигаться. А ты — собери его обратно.',
           locationPhoto: null,
           // ⚙️ Игра 2: Механический лотос — крути шестерни
-          miniGameType: MiniGameType.mechanicalLotus,
+          miniGameType: MiniGameType.jellyTower,
           miniGameItems: ['Принтер', 'Манипулятор', 'Филамент', 'Модель', 'Стол', 'Сопло'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',  // ← ЗАМЕНИ на фото лаборатории

@@ -5,8 +5,8 @@ import '../data/quest_data.dart';
 import '../data/app_state.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/confetti_widget.dart';
-import '../game/neon_ray_game.dart';
-import '../game/mechanical_lotus_game.dart';
+import '../game/magic_runes_game.dart';
+import '../game/jelly_tower_game.dart';
 import '../game/particle_alchemy_game.dart';
 import '../game/shadow_escape_game.dart';
 import '../game/star_drift_game.dart';
@@ -73,12 +73,12 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
     void fail() { Navigator.pop(context); _onGameFail(); }
 
     return switch (task.miniGameType) {
-      MiniGameType.neonRay         => NeonRayGame(onSuccess: ok, onFail: fail),
-      MiniGameType.mechanicalLotus => MechanicalLotusGame(onSuccess: ok, onFail: fail),
+      MiniGameType.magicRunes      => MagicRunesGame(onSuccess: ok, onFail: fail),
+      MiniGameType.jellyTower      => JellyTowerGame(onSuccess: ok, onFail: fail),
       MiniGameType.particleAlchemy => ParticleAlchemyGame(onSuccess: ok, onFail: fail),
       MiniGameType.shadowEscape    => ShadowEscapeGame(onSuccess: ok, onFail: fail),
       MiniGameType.starDrift       => StarDriftGame(onSuccess: ok, onFail: fail),
-      MiniGameType.none            => NeonRayGame(onSuccess: ok, onFail: fail),
+      MiniGameType.none            => MagicRunesGame(onSuccess: ok, onFail: fail),
     };
   }
 
@@ -492,8 +492,8 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   }
 
   String _gameButtonLabel(MiniGameType type) => switch (type) {
-    MiniGameType.neonRay         => 'Играть: Неоновый луч 🔦',
-    MiniGameType.mechanicalLotus => 'Играть: Механический лотос ⚙️',
+    MiniGameType.magicRunes      => 'Играть: Магические руны 🔮',
+    MiniGameType.jellyTower      => 'Играть: Башня из желе 🏗️',
     MiniGameType.particleAlchemy => 'Играть: Алхимия частиц 💫',
     MiniGameType.shadowEscape    => 'Играть: Побег тени 👾',
     MiniGameType.starDrift       => 'Играть: Звёздный дрифт 🚀',
@@ -501,8 +501,8 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
   };
 
   IconData _gameButtonIcon(MiniGameType type) => switch (type) {
-    MiniGameType.neonRay         => Icons.flashlight_on_rounded,
-    MiniGameType.mechanicalLotus => Icons.settings_rounded,
+    MiniGameType.magicRunes      => Icons.auto_fix_high_rounded,
+    MiniGameType.jellyTower      => Icons.stacked_bar_chart_rounded,
     MiniGameType.particleAlchemy => Icons.auto_awesome_rounded,
     MiniGameType.shadowEscape    => Icons.dark_mode_rounded,
     MiniGameType.starDrift       => Icons.rocket_launch_rounded,
