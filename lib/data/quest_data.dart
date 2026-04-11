@@ -94,7 +94,7 @@ class QuestData {
         QuestTask(
           number: 1, title: 'Главный вход',
           description: 'Какой адрес написан на табличке у входа?',
-          hint: 'Это место — портал в мир ИТ. Начни там, где ты зашёл в здание.',
+          hint: 'Ищи синюю навигационную табличку у входной группы: на ней указан корпус и номер дома. Рядом — стеклянные двери с режимом работы.',
           location: 'Главный вход, 1 этаж',
           icon: Icons.door_front_door_rounded,
           locationStory:
@@ -102,7 +102,7 @@ class QuestData {
               'Но фундамент под ним — 1860-й. Именно здесь Григоров впервые привёл учениц.\n\n'
               'Легенда гласит: если войти ровно в 08:00:00, Система скомпилирует твой личный код с первого раза. '
               'Тысячи студентов прошли здесь. Никто не вышел прежним.',
-          locationPhoto: 'assets/images/quest1.jpg',
+          locationPhoto: 'assets/images/puzzle_photo.jpg',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -110,7 +110,7 @@ class QuestData {
         QuestTask(
           number: 2, title: 'Гардероб',
           description: 'Сколько окон в месте хранения верхней одежды? (2 окна)',
-          hint: 'Здесь твоя куртка ждёт тебя до конца пар. Ищи на первом этаже.',
+          hint: 'Зона с вешалками и куртками рядом с маркировкой «архив» — типичный вход в гардероб.',
           location: '1 этаж, гардероб',
           icon: Icons.checkroom_rounded,
           locationStory:
@@ -118,7 +118,7 @@ class QuestData {
               'Когда-то здесь гимназистки оставляли верхнюю одежду перед уроками.\n\n'
               'Самая стабильная база данных корпуса. Ни одного сбоя за 165 лет. '
               'Даже революция не смогла стереть этот ритуал.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_cloakroom_archive.png',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -126,14 +126,14 @@ class QuestData {
         QuestTask(
           number: 3, title: 'Дирекция',
           description: 'Найди кабинет дирекции. До скольки они максимум работают?',
-          hint: 'Административное сердце школы на 2 этаже в центральной части.',
+          hint: 'На втором этаже ищи стеклянную табличку у лестницы: там указаны «Дирекция» и диапазон кабинетов.',
           location: '2 этаж, центр',
           icon: Icons.business_rounded,
           locationStory:
               'Root-доступ. Здесь когда-то сидел директор гимназии, потом — завуч школы, теперь — деканат.\n\n'
               'Именно отсюда «добавляют» и «удаляют» пользователей. '
               'Одна подпись — и ты либо в системе, либо вне её.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -141,7 +141,7 @@ class QuestData {
         QuestTask(
           number: 4, title: 'Главная лестница',
           description: 'Сколько ступеней в первом пролёте от 1 этажа до первой площадки? (13 ступеней)',
-          hint: 'Найди главную лестницу. Считай ступени в первом пролёте.',
+          hint: 'Ориентир — парадный марш с плиткой и стеклянной дверью на площадке; считай только первый пролёт.',
           location: '1–2 этаж, лестница',
           icon: Icons.stairs_rounded,
           locationStory:
@@ -149,7 +149,7 @@ class QuestData {
               'Она пережила мануфактуру, гимназию, революцию и открытие 1981-го.\n\n'
               'Ты буквально идёшь по следам первых 700 учениц. '
               'Каждый подъём — +1 к выносливости перед сессией.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_stairwell_descent.png',
           miniGameType: MiniGameType.magicRunes,
           miniGameItems: ['Перила', 'Ступень', 'Площадка', 'Пролёт', 'Балясина', 'Марш'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -185,7 +185,7 @@ class QuestData {
         QuestTask(
           number: 1, title: 'Серверная',
           description: 'Какой номер на двери серверной? (это 110²)',
-          hint: 'Ищи дверь из-за которой доносится гул вентиляторов на первом этаже.',
+          hint: 'На стекле двери вертикально написано слово «Серверная» — подойди и прочитай номер кабинета.',
           location: '1 этаж, техническое крыло',
           icon: Icons.dns_rounded,
           locationStory:
@@ -194,7 +194,7 @@ class QuestData {
               'и цифровые копии архивных документов гимназии.\n\n'
               'Стены помнят шум ткацких станков — '
               'теперь вместо них гудят вентиляторы.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_server_room_glass.png',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -202,7 +202,7 @@ class QuestData {
         QuestTask(
           number: 2, title: 'Лаборатория робототехники',
           description: 'Посмотри через стекло. Какого цвета элементы у ближайшего манипулятора?',
-          hint: 'Место где код оживает. Ищи лабораторию с 3D-принтерами за стеклом.',
+          hint: 'У лестницы ищи стеклянную навигацию: ИТ-зона, «Архиватор» и пометки в духе машинного кода — рядом крыло, где железо встречается с софтом.',
           location: 'Лаборатория робототехники',
           icon: Icons.precision_manufacturing_rounded,
           locationStory:
@@ -210,7 +210,7 @@ class QuestData {
               'Когда-то здесь ткали полотно. Сегодня — учат железо думать.\n\n'
               'Именно здесь студенты впервые заставили роботов «вспоминать» историю корпуса. '
               'Собери её обратно.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.jellyTower,
           miniGameItems: ['Принтер', 'Манипулятор', 'Филамент', 'Модель', 'Стол', 'Сопло'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -219,14 +219,14 @@ class QuestData {
         QuestTask(
           number: 3, title: 'Аудитория ИИ (Киберполигон)',
           description: 'Сколько дверей ведёт в эту аудиторию? (2 двери)',
-          hint: 'Здесь обучают ИИ и проводят киберспортивные турниры.',
+          hint: 'Ориентир — коридор в стиле «кибер»: зелёная стена, неон и проём с яркой синей подсветкой.',
           location: 'Аудитория киберполигона',
           icon: Icons.security_rounded,
           locationStory:
               'Два входа — на случай если один «заблочат». '
               'Нейросети, кибербезопасность, киберспорт.\n\n'
               'Здесь Система сама учится у студентов.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_cyber_hallway_blue_green.png',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -234,7 +234,7 @@ class QuestData {
         QuestTask(
           number: 4, title: 'Кабинет с Ультра-монитором',
           description: 'На каком этаже находится зал с огромным экраном? (4 этаж)',
-          hint: 'Самая большая аудитория корпуса на самом высоком этаже.',
+          hint: 'У лестницы ищи стеклянную табличку с номером этажа и диапазоном комнат — она подскажет, куда подниматься к большому залу.',
           location: '4 этаж, большой зал',
           icon: Icons.tv_rounded,
           locationStory:
@@ -278,7 +278,7 @@ class QuestData {
         QuestTask(
           number: 1, title: 'Главный коворкинг',
           description: 'Сколько столов в зоне отдыха? Совмещённые считай отдельно. (10 столов)',
-          hint: 'Ищи зону с мягкой мебелью — пространство для командной работы.',
+          hint: 'Комната с пуфами у окна и зелёной неоновой подсветкой на стенах — типичный коворкинг-хаб.',
           location: '1 этаж, коворкинг',
           icon: Icons.groups_rounded,
           locationStory:
@@ -293,7 +293,7 @@ class QuestData {
         QuestTask(
           number: 2, title: 'Читальный зал',
           description: 'Сколько высоких «барных» стульев стоит у окна?',
-          hint: 'Самое тихое место на самом верхнем этаже корпуса.',
+          hint: 'Ищи уединённый зал с панорамным окном в конце и вертикальными зелёными линиями на стенах.',
           location: '4 этаж, читальный зал',
           icon: Icons.menu_book_rounded,
           locationStory:
@@ -301,7 +301,7 @@ class QuestData {
               '12 000 томов, рукописи, роскошные переплёты.\n\n'
               'Панорамный вид на Волгу — как бонус. '
               'Именно здесь гимназистки когда-то читали первые книги.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -309,14 +309,14 @@ class QuestData {
         QuestTask(
           number: 3, title: 'Зона диванов',
           description: 'Рядом с диванами есть розетки. Сколько гнёзд? (3 гнезда)',
-          hint: 'Секретное место для отдыха на 2 этаже. Идеально для подзарядки ноутбука.',
+          hint: 'Коридор с мягким пуфом у зелёной стены и жёлтой дверью в глубине — отличная точка для паузы между парами.',
           location: '2 этаж, зона отдыха',
           icon: Icons.weekend_rounded,
           locationStory:
               'Секретный хаб. Мягкие диваны, розетки, слухи о зачётах.\n\n'
               'Говорят, если уснуть здесь, Система сама подскажет ответ на экзамене… '
               'но проверять не рекомендуется.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -324,14 +324,14 @@ class QuestData {
         QuestTask(
           number: 4, title: 'Кофе-автомат',
           description: 'Сколько стоит большинство напитков в автомате? (100 рублей)',
-          hint: 'Главный топливный бак корпуса на первом этаже.',
+          hint: 'Синий корпус, стеклянная панель и терминал бесконтакта на боковой стороне — не промахнёшься.',
           location: '1 этаж, кофе-автомат',
           icon: Icons.local_cafe_rounded,
           locationStory:
               'Главный топливный бак корпуса. Программист — организм, перерабатывающий кофе в код.\n\n'
               'С 1860 года здесь всегда было «топливо»: сначала чай для учительниц, '
               'теперь — латте для кодеров.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_coffee_vending.png',
           miniGameType: MiniGameType.particleAlchemy,
           miniGameItems: ['Кофе', 'Кнопка', 'Стакан', 'Монета', 'Экран', 'Сахар'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -368,13 +368,13 @@ class QuestData {
         QuestTask(
           number: 1, title: 'Спуск в игровую',
           description: 'Сколько ступеней ведёт вниз в игровую зону?',
-          hint: 'Найди лестницу вниз — переход из учебной реальности в игровую.',
+          hint: 'Сначала на 1 этаже найди стеклянный указатель с «Игровая 8 бит», затем — лестницу как на фото: открытая стеклянная дверь на площадке.',
           location: 'Цоколь, лестница вниз',
           icon: Icons.arrow_downward_rounded,
           locationStory:
               'Переход из мира дедлайнов в мир игры. '
               'Один спуск — и ты уже в другой реальности.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/loc_stairwell_descent.png',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -382,14 +382,14 @@ class QuestData {
         QuestTask(
           number: 2, title: 'Игровая комната',
           description: 'Найди зелёные трубы как в Марио. Из скольких этажей состоит аудитория? (2 этажа)',
-          hint: 'Двухэтажная аудитория. Главная пасхалка корпуса.',
+          hint: 'Ориентир — стойка с красной неоновой надписью «Файрволл»: это ресепшн игрового кластера.',
           location: 'Цоколь, игровая комната',
           icon: Icons.sports_esports_rounded,
           locationStory:
               'Зелёные трубы — главная пасхалка корпуса. '
               'Здесь студенты отдыхают так же, как когда-то гимназистки в саду.\n\n'
               'В ИТ всегда есть скрытые уровни.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -397,14 +397,14 @@ class QuestData {
         QuestTask(
           number: 3, title: 'Медиа-студия',
           description: 'Посмотри на ряды кресел. Из чего сделаны подлокотники?',
-          hint: 'Находится напротив игровой комнаты.',
+          hint: 'Ищи яркий фирменный акцент на стене или стойке — в медиа-зонах часто бьют по бренду и свету.',
           location: 'Напротив игровой, медиа-студия',
           icon: Icons.videocam_rounded,
           locationStory:
               'Зал, где рождается цифровой контент КГУ. '
               'Интервью с лидерами индустрии, ток-шоу, съёмки.\n\n'
               'Возможно, именно здесь однажды снимут историю про тебя.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -412,7 +412,7 @@ class QuestData {
         QuestTask(
           number: 4, title: 'Панорамное окно',
           description: 'Что видно по центру из окна 4 этажа?\n1) Волгу  2) Корпус  3) Лес  4) Парк',
-          hint: 'Найди окно на 4 этаже там же где барные стулья.',
+          hint: 'В конце глубокого коридора выходит яркое окно — подойди к нему и посмотри в центр кадра.',
           location: '4 этаж, панорамное окно',
           icon: Icons.window_rounded,
           locationStory:
@@ -420,7 +420,7 @@ class QuestData {
               'Отсюда когда-то смотрели на Волгу гимназистки.\n\n'
               'Сегодня — 20-20-20 правило: каждые 20 минут смотри вдаль 20 секунд. '
               'Дай глазам отдохнуть от мониторов.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.shadowEscape,
           miniGameItems: ['Окно', 'Волга', 'Вид', 'Этаж', 'Небо', 'Панорама'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
@@ -459,14 +459,14 @@ class QuestData {
         QuestTask(
           number: 1, title: 'Главная вывеска',
           description: 'Сколько букв на главной вывеске корпуса?',
-          hint: 'Вывеска находится на крыше крыльца при входе в здание.',
+          hint: 'Снаружи считай буквы на крыше; внутри подскажет стеклянный указатель у лестницы с логотипом КГУ и корпусами В, Г, Д.',
           location: 'Крыльцо, главная вывеска',
           icon: Icons.emoji_events_rounded,
           locationStory:
               'Этой вывеской в 1981 году открылась новая глава. '
               'Каждая буква — символ нового поколения разработчиков, дизайнеров, инженеров.\n\n'
               'С 1859 года это место меняло форму. Но не смысл.',
-          locationPhoto: null,
+          locationPhoto: 'assets/images/quest1.jpg',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -474,7 +474,7 @@ class QuestData {
         QuestTask(
           number: 2, title: 'Галерея активистов',
           description: 'Найди место с фото самых активных ребят. Запомни все лица!',
-          hint: 'Ищи на втором этаже напротив одной из лестниц.',
+          hint: 'Ищи длинный неоновый коридор с пуфами у стен — к стенду с портретами часто ведёт именно такой проход.',
           location: '2 этаж, галерея',
           icon: Icons.photo_library_rounded,
           locationStory:
@@ -491,14 +491,14 @@ class QuestData {
         QuestTask(
           number: 3, title: 'Конференц-зал',
           description: 'Найди главный зал где проходят все защиты и важные события.',
-          hint: 'Место решающих битв за диплом. Самый большой зал в корпусе.',
+          hint: 'Ищи глубокую ось корпуса: кирпичные вставки, промышленный потолок и навигационные таблички у проёмов.',
           location: '4 этаж, конференц-зал',
           icon: Icons.theater_comedy_rounded,
           locationStory:
               'Место решающих битв. Здесь проходили посвящения гимназисток, '
               'вручение дипломов и теперь — твоя защита.\n\n'
               'Всё важное — здесь.',
-          locationPhoto: 'assets/images/quest4.jpg',
+          locationPhoto: 'assets/images/quset4.jpg',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
@@ -506,14 +506,14 @@ class QuestData {
         QuestTask(
           number: 4, title: 'Стенд для выпускников',
           description: 'Найди стенд с информацией о защитах рядом с деканатом.',
-          hint: 'Ищи специальный стенд рядом с деканатом на 2 этаже.',
+          hint: 'На стене часто висит план эвакуации и указатель на «Дирекцию»; стенд с документами обычно в этом же крыле.',
           location: '2 этаж, рядом с деканатом',
           icon: Icons.info_rounded,
           locationStory:
               'Последний рубеж перед дипломом. '
               'Здесь всё что нужно знать о защите: сроки, требования, контакты комиссии.\n\n'
               'Читай внимательно. Система проверит.',
-          locationPhoto: null,
+          locationPhoto: '',
           miniGameType: MiniGameType.none, miniGameItems: [],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
