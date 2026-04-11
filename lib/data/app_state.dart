@@ -14,6 +14,10 @@ class AppState extends ChangeNotifier {
   int tasksCompleted = 0;
   int totalMinutes = 0;
 
+  // Легенда — показывается один раз
+  bool hasSeenLegend = false;
+  void markLegendSeen() { hasSeenLegend = true; }
+
   // Прогресс квестов: questId -> кол-во выполненных заданий
   final Map<String, int> _questProgress = {};
   // Завершённые квесты

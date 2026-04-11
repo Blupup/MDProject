@@ -1,47 +1,43 @@
 // lib/game/particle_alchemy_game.dart
 //
-// «Алхимия частиц» — управляй точкой притяжения чтобы провести поток частиц в чашу.
-// Квест 3 «Debug» — отлаживай поток как в коде.
-//
+// 💫 АЛХИМИЯ ЧАСТИЦ — соедини частицы правильными парами!
+// На поле летают частицы с символами — тяни от одной к другой,
+// чтобы создать элемент. Найди 5 правильных пар чтобы победить.
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/common_widgets.dart';
 
-// ─── Частица ──────────────────────────────────────────────────────────────
+// ─── Данные элементов ────────────────────────────────────────────────────────
+class _Element {
+  final String a, b;
+  final String result;
+  final String emoji;
+  final Color color;
+  const _Element(this.a, this.b, this.result, this.emoji, this.color);
+}
+
+const _kElements = [
+  _Element('🔥', '💧', 'Пар',     '☁️', Color(0xFF00D4AA)),
+  _Element('🌍', '🔥', 'Магма',   '🌋', Color(0xFFFF6B35)),
+  _Element('💧', '🌍', 'Болото',  '🌿', Color(0xFF4CAF50)),
+  _Element('🌬️', '💧', 'Шторм',  '⛈️', Color(0xFF2E86AB)),
+  _Element('🌬️', '🔥', 'Молния', '⚡', Color(0xFFFFD700)),
+];
+
 class _Particle {
-  double x, y, vx, vy;
-  final double hue;   // для цвета
-  double life;        // 0..1
+  Offset pos;
+  Offset vel;
+  final String symbol;
+  final int idx;
+  double phase; // для анимации дыхания
 
-  _Particle({
-    required this.x, required this.y,
-    required this.vx, required this.vy,
-    required this.hue,
-    this.life = 1.0,
-  });
+  _Particle({required this.pos, required this.vel, required this.symbol, required this.idx, required this.phase});
 }
 
-// ─── Уровень ──────────────────────────────────────────────────────────────
-class _LevelConfig {
-  final String name;
-  final Offset spawnPoint;
-  final Offset cupCenter;
-  final double cupRadius;
-  final List<Rect> walls;
-  final int particlesNeeded;
+enum _AlchemyPhase { playing, success, fail }
 
-  const _LevelConfig({
-    required this.name,
-    required this.spawnPoint,
-    required this.cupCenter,
-    required this.cupRadius,
-    required this.walls,
-    required this.particlesNeeded,
-  });
-}
-
-// ─── Главный виджет ───────────────────────────────────────────────────────
 class ParticleAlchemyGame extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onFail;
@@ -54,505 +50,524 @@ class ParticleAlchemyGame extends StatefulWidget {
 
 class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
     with TickerProviderStateMixin {
-
-  static const _levelConfigs = [
-    _LevelConfig(
-      name: 'Прямой поток',
-      spawnPoint: Offset(0.5, 0.08),
-      cupCenter: Offset(0.5, 0.88),
-      cupRadius: 0.09,
-      walls: [],
-      particlesNeeded: 15,
-    ),
-    _LevelConfig(
-      name: 'Первый барьер',
-      spawnPoint: Offset(0.5, 0.08),
-      cupCenter: Offset(0.5, 0.88),
-      cupRadius: 0.08,
-      walls: [
-        Rect.fromLTWH(0.1, 0.4, 0.35, 0.04),
-        Rect.fromLTWH(0.55, 0.55, 0.35, 0.04),
-      ],
-      particlesNeeded: 20,
-    ),
-    _LevelConfig(
-      name: 'Лабиринт',
-      spawnPoint: Offset(0.15, 0.08),
-      cupCenter: Offset(0.82, 0.88),
-      cupRadius: 0.07,
-      walls: [
-        Rect.fromLTWH(0.1,  0.28, 0.55, 0.04),
-        Rect.fromLTWH(0.35, 0.48, 0.55, 0.04),
-        Rect.fromLTWH(0.1,  0.68, 0.55, 0.04),
-      ],
-      particlesNeeded: 25,
-    ),
-  ];
-
-  int _levelIdx = 0;
-  final List<_Particle> _particles = [];
-  Offset? _attractorPos;      // позиция «чёрной дыры» (палец)
-  int _captured = 0;
-  int _timeLeft = 45;
-  bool _won = false, _failed = false;
-
-  late AnimationController _tickCtrl, _winCtrl, _failCtrl;
-  late Animation<double> _winScale, _failScale;
-
-  DateTime? _lastTick;
   final _rng = Random();
-  double _spawnAccum = 0;
-  double _w = 0, _h = 0;
+  List<_Particle> _particles = [];
+  int? _draggingIdx;
+  Offset? _dragPos;
+  int? _hoveredIdx;
 
-  _LevelConfig get _level => _levelConfigs[_levelIdx];
+  List<String> _discovered = [];
+  List<_Element> _remaining = List.from(_kElements);
+  String? _lastResult;
+  bool _showResult = false;
+  _AlchemyPhase _phase = _AlchemyPhase.playing;
+  int _tries = 0;
+  static const int _maxTries = 15;
+
+  late AnimationController _animCtrl;
+  late AnimationController _bgCtrl;
+  late AnimationController _resultCtrl;
+  late Animation<double> _bgAnim;
+  late Animation<double> _resultScale;
+  late Animation<double> _resultFade;
+  late AnimationController _flashCtrl;
+  late Animation<double> _flashAnim;
+
+  static const _symbols = ['🔥', '💧', '🌍', '🌬️'];
 
   @override
   void initState() {
     super.initState();
-    _tickCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 300))
-      ..addListener(_tick)..forward();
-    _winCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _failCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _winScale  = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _winCtrl,  curve: Curves.elasticOut));
-    _failScale = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _failCtrl, curve: Curves.easeOut));
 
-    _startTimer();
+    _bgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 5))..repeat(reverse: true);
+    _bgAnim = CurvedAnimation(parent: _bgCtrl, curve: Curves.easeInOut);
+
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 999));
+    _animCtrl.addListener(_tick);
+    _animCtrl.forward();
+
+    _resultCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _resultScale = Tween(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _resultCtrl, curve: Curves.elasticOut));
+    _resultFade  = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeOut);
+
+    _flashCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _flashAnim = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _flashCtrl, curve: Curves.easeOut));
+
+    // Инициализируем частицы после первого layout
+    WidgetsBinding.instance.addPostFrameCallback((_) => _spawnParticles());
+  }
+
+  void _spawnParticles() {
+    final size = MediaQuery.of(context).size;
+    final fw = size.width;
+    final fh = size.height * 0.55;
+
+    _particles = List.generate(8, (i) {
+      final sym = _symbols[i % _symbols.length];
+      return _Particle(
+        pos: Offset(80 + _rng.nextDouble() * (fw - 160), 80 + _rng.nextDouble() * (fh - 160)),
+        vel: Offset((_rng.nextDouble() - 0.5) * 1.2, (_rng.nextDouble() - 0.5) * 1.2),
+        symbol: sym,
+        idx: i,
+        phase: _rng.nextDouble() * 2 * pi,
+      );
+    });
+    setState(() {});
   }
 
   @override
   void dispose() {
-    _tickCtrl.dispose(); _winCtrl.dispose(); _failCtrl.dispose();
+    _animCtrl.dispose();
+    _bgCtrl.dispose();
+    _resultCtrl.dispose();
+    _flashCtrl.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted || _won || _failed) return false;
-      setState(() => _timeLeft--);
-      if (_timeLeft <= 0) { _triggerFail(); return false; }
-      return true;
-    });
-  }
-
   void _tick() {
-    if (_w == 0 || _won || _failed) return;
-    final now = DateTime.now();
-    final dt = _lastTick == null
-        ? 0.016
-        : (now.difference(_lastTick!).inMicroseconds / 1e6).clamp(0.0, 0.05);
-    _lastTick = now;
+    if (_phase != _AlchemyPhase.playing) return;
+    final size = MediaQuery.of(context).size;
+    final fw = size.width;
+    final fh = size.height * 0.55;
 
     setState(() {
-      // Спавн частиц
-      _spawnAccum += dt * 6;
-      while (_spawnAccum >= 1) {
-        _spawnAccum -= 1;
-        _spawnParticle();
-      }
-
-      // Обновление
       for (final p in _particles) {
-        _updateParticle(p, dt);
+        if (p.idx == _draggingIdx) continue;
+        p.phase += 0.03;
+        p.pos += p.vel;
+
+        // Отбой от стен
+        if (p.pos.dx < 30 || p.pos.dx > fw - 30) p.vel = Offset(-p.vel.dx, p.vel.dy);
+        if (p.pos.dy < 30 || p.pos.dy > fh - 30) p.vel = Offset(p.vel.dx, -p.vel.dy);
+        p.pos = Offset(p.pos.dx.clamp(30, fw - 30), p.pos.dy.clamp(30, fh - 30));
       }
-
-      // Удаление улетевших
-      _particles.removeWhere((p) => p.life <= 0 ||
-          p.x < -0.1 || p.x > 1.1 || p.y < -0.1 || p.y > 1.1);
-
-      // Проверка захвата
-      final cupX = _level.cupCenter.dx * _w;
-      final cupY = _level.cupCenter.dy * _h;
-      final cupR = _level.cupRadius * min(_w, _h);
-
-      _particles.removeWhere((p) {
-        final dx = p.x * _w - cupX;
-        final dy = p.y * _h - cupY;
-        if (dx * dx + dy * dy < cupR * cupR) {
-          _captured++;
-          HapticFeedback.selectionClick();
-          if (_captured >= _level.particlesNeeded) {
-            _triggerWin();
-          }
-          return true;
-        }
-        return false;
-      });
     });
   }
 
-  void _spawnParticle() {
-    final sx = _level.spawnPoint.dx + (_rng.nextDouble() - 0.5) * 0.06;
-    final sy = _level.spawnPoint.dy;
-    _particles.add(_Particle(
-      x: sx, y: sy,
-      vx: (_rng.nextDouble() - 0.5) * 0.05,
-      vy: 0.02 + _rng.nextDouble() * 0.04,
-      hue: 200 + _rng.nextDouble() * 120,
-    ));
-    if (_particles.length > 300) _particles.removeAt(0);
-  }
+  // ─── Попытка слияния ─────────────────────────────────────────────────────
+  void _tryMerge(int fromIdx, int toIdx) {
+    if (fromIdx == toIdx) return;
+    final a = _particles[fromIdx].symbol;
+    final b = _particles[toIdx].symbol;
+    if (a == b) return;
 
-  void _updateParticle(_Particle p, double dt) {
-    // Гравитация к аттрактору
-    if (_attractorPos != null) {
-      final ax = _attractorPos!.dx / _w;
-      final ay = _attractorPos!.dy / _h;
-      final dx = ax - p.x;
-      final dy = ay - p.y;
-      final dist = sqrt(dx * dx + dy * dy).clamp(0.05, 1.0);
-      final force = 0.8 / (dist * dist);
-      p.vx += dx / dist * force * dt;
-      p.vy += dy / dist * force * dt;
+    _tries++;
+    if (_tries >= _maxTries && _remaining.isNotEmpty) {
+      _showFail();
+      return;
     }
 
-    // Естественное падение
-    p.vy += 0.15 * dt;
+    final match = _kElements.where((e) =>
+      (e.a == a && e.b == b) || (e.a == b && e.b == a)).firstOrNull;
 
-    // Стены — отталкивание
-    for (final wall in _level.walls) {
-      final wx1 = wall.left, wx2 = wall.right;
-      final wy1 = wall.top, wy2 = wall.bottom;
-      if (p.x > wx1 && p.x < wx2 && p.y > wy1 - 0.02 && p.y < wy2 + 0.02) {
-        if (p.vy > 0 && p.y < wy1 + 0.02) p.vy = -p.vy.abs() * 0.5;
-        else if (p.vy < 0 && p.y > wy2 - 0.02) p.vy = p.vy.abs() * 0.5;
-        p.vx += (_rng.nextDouble() - 0.5) * 0.1;
-      }
-    }
+    if (match != null && _remaining.contains(match)) {
+      HapticFeedback.mediumImpact();
+      _remaining.remove(match);
+      _discovered.add(match.result);
+      _lastResult = '${match.emoji} ${match.result} создан!';
+      _showResult = true;
+      _flashCtrl.forward(from: 0);
+      setState(() {});
 
-    // Ограничение скорости
-    final speed = sqrt(p.vx * p.vx + p.vy * p.vy);
-    if (speed > 0.8) { p.vx *= 0.8 / speed; p.vy *= 0.8 / speed; }
-
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.life -= dt * 0.15;
-  }
-
-  void _triggerWin() {
-    if (_won) return;
-    setState(() => _won = true);
-    _tickCtrl.stop();
-    HapticFeedback.heavyImpact();
-    _winCtrl.forward();
-
-    if (_levelIdx < _levelConfigs.length - 1) {
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 1200), () {
         if (!mounted) return;
-        setState(() {
-          _levelIdx++;
-          _won = false;
-          _captured = 0;
-          _timeLeft = 45;
-          _particles.clear();
-        });
-        _winCtrl.reset();
-        _tickCtrl.forward(from: 0);
-        _startTimer();
+        setState(() => _showResult = false);
+        if (_remaining.isEmpty) _showSuccess();
       });
     } else {
-      Future.delayed(const Duration(milliseconds: 2200), () {
-        if (mounted) widget.onSuccess();
-      });
+      HapticFeedback.lightImpact();
     }
   }
 
-  void _triggerFail() {
-    if (_failed) return;
-    _tickCtrl.stop();
-    setState(() => _failed = true);
-    _failCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) widget.onFail();
-    });
+  void _showSuccess() {
+    setState(() => _phase = _AlchemyPhase.success);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onSuccess);
   }
 
+  void _showFail() {
+    setState(() => _phase = _AlchemyPhase.fail);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onFail);
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF05001A),
-      body: SafeArea(
-        child: Column(children: [
-          _buildHeader(),
-          Expanded(child: Stack(children: [
-            GestureDetector(
-              onPanStart:  (d) => setState(() => _attractorPos = d.localPosition),
-              onPanUpdate: (d) => setState(() => _attractorPos = d.localPosition),
-              onPanEnd:    (_) => setState(() => _attractorPos = null),
-              onTapDown:   (d) => setState(() => _attractorPos = d.localPosition),
-              onTapUp:     (_) => setState(() => _attractorPos = null),
-              child: LayoutBuilder(builder: (ctx, cst) {
-                _w = cst.maxWidth; _h = cst.maxHeight;
-                return AnimatedBuilder(
-                  animation: _tickCtrl,
-                  builder: (_, __) => CustomPaint(
-                    size: Size(_w, _h),
-                    painter: _AlchemyPainter(
-                      particles: List.from(_particles),
-                      attractorPos: _attractorPos,
-                      level: _level,
-                      captured: _captured,
-                      w: _w, h: _h,
-                    ),
-                  ),
-                );
-              }),
-            ),
-            if (_won && _levelIdx == _levelConfigs.length - 1)
-              _buildWinOverlay(),
-            if (_failed)
-              _buildFailOverlay(),
-          ])),
-          _buildFooter(),
-        ]),
-      ),
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        AnimatedBuilder(
+          animation: _bgAnim,
+          builder: (_, __) => CustomPaint(
+            size: MediaQuery.of(context).size,
+            painter: _AlchemyBgPainter(_bgAnim.value),
+          ),
+        ),
+
+        SafeArea(
+          child: Column(children: [
+            _buildHeader(),
+            _buildStats(),
+            const SizedBox(height: 8),
+            Expanded(child: _buildField()),
+            _buildRecipes(),
+            const SizedBox(height: 20),
+          ]),
+        ),
+
+        if (_showResult)
+          _buildResultFlash(),
+
+        if (_phase != _AlchemyPhase.playing)
+          _buildEndOverlay(),
+      ]),
     );
   }
 
   Widget _buildHeader() {
-    final timeColor = _timeLeft > 20 ? const Color(0xFFBB00FF) : (_timeLeft > 8 ? Colors.orange : kRed);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      color: const Color(0xFF05001A),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF6600CC), Color(0xFFFF6600)]),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: const Color(0xFFBB00FF).withOpacity(0.4), blurRadius: 10)],
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
           ),
-          child: const Row(children: [
-            Text('💫', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 5),
-            Text('Алхимия частиц',
-                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-          ]),
+        ),
+        const SizedBox(width: 12),
+        ShaderMask(
+          shaderCallback: (b) => const LinearGradient(
+              colors: [Color(0xFFFF6B35), Color(0xFFFFD700)]).createShader(b),
+          child: const Text('АЛХИМИЯ ЧАСТИЦ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                  color: Colors.white, letterSpacing: 1.5)),
         ),
         const Spacer(),
-        Text('${_level.name}',
-            style: const TextStyle(color: Colors.white38, fontSize: 11)),
-        const SizedBox(width: 10),
-        // Прогресс
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFFBB00FF).withOpacity(0.15),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFBB00FF).withOpacity(0.4)),
+            gradient: const LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFFD700)]),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Text('$_captured / ${_level.particlesNeeded}',
-              style: const TextStyle(color: Color(0xFFBB00FF), fontSize: 12, fontWeight: FontWeight.w800)),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            border: Border.all(color: timeColor, width: 2),
-            shape: BoxShape.circle,
-            color: timeColor.withOpacity(0.1),
-          ),
-          child: Center(child: Text('$_timeLeft',
-              style: TextStyle(color: timeColor, fontSize: 13, fontWeight: FontWeight.w900))),
+          child: Text('${_discovered.length}/${_kElements.length}',
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
         ),
       ]),
     );
   }
 
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-      color: const Color(0xFF05001A),
-      child: Text(
-        _attractorPos != null
-            ? '🌀 Аттрактор активен — тяни частицы к чаше'
-            : '☝️ Удерживай палец на экране чтобы притягивать частицы',
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.35)),
+  Widget _buildStats() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Row(children: [
+        Expanded(child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: _discovered.length / _kElements.length,
+            minHeight: 4,
+            backgroundColor: Colors.white.withOpacity(0.08),
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+          ),
+        )),
+        const SizedBox(width: 12),
+        Text('Попыток: $_tries/$_maxTries',
+            style: TextStyle(
+                color: _tries > _maxTries * 0.7 ? const Color(0xFFFF6B6B) : Colors.white54,
+                fontSize: 11, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  Widget _buildField() {
+    return LayoutBuilder(builder: (ctx, constraints) {
+      return GestureDetector(
+        onPanStart: (d) {
+          final idx = _hitTest(d.localPosition);
+          if (idx != null) {
+            setState(() { _draggingIdx = idx; _dragPos = d.localPosition; });
+          }
+        },
+        onPanUpdate: (d) {
+          if (_draggingIdx == null) return;
+          setState(() {
+            _dragPos = d.localPosition;
+            _particles[_draggingIdx!].pos = d.localPosition;
+            // Проверяем hover
+            _hoveredIdx = null;
+            for (int i = 0; i < _particles.length; i++) {
+              if (i == _draggingIdx) continue;
+              if ((_particles[i].pos - d.localPosition).distance < 50) {
+                _hoveredIdx = i;
+              }
+            }
+          });
+        },
+        onPanEnd: (_) {
+          if (_draggingIdx != null && _hoveredIdx != null) {
+            _tryMerge(_draggingIdx!, _hoveredIdx!);
+          }
+          setState(() { _draggingIdx = null; _hoveredIdx = null; _dragPos = null; });
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.07)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(children: [
+            // Линия перетаскивания
+            if (_draggingIdx != null && _dragPos != null)
+              CustomPaint(
+                size: Size(constraints.maxWidth - 32, constraints.maxHeight),
+                painter: _LinePainter(
+                  from: _particles[_draggingIdx!].pos,
+                  to: _dragPos!,
+                  color: const Color(0xFFFFD700),
+                ),
+              ),
+
+            // Частицы
+            ..._particles.map((p) {
+              final isHovered = _hoveredIdx == p.idx;
+              final isDragging = _draggingIdx == p.idx;
+              final breathe = sin(p.phase) * 0.08;
+
+              return Positioned(
+                left: p.pos.dx - 28,
+                top: p.pos.dy - 28,
+                child: Transform.scale(
+                  scale: (isDragging ? 1.2 : isHovered ? 1.15 : 1.0) + breathe,
+                  child: Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (isDragging || isHovered)
+                          ? const Color(0xFFFFD700).withOpacity(0.2)
+                          : Colors.black.withOpacity(0.5),
+                      border: Border.all(
+                        color: isDragging
+                            ? const Color(0xFFFFD700)
+                            : isHovered
+                                ? const Color(0xFF00D4AA)
+                                : Colors.white.withOpacity(0.2),
+                        width: isDragging || isHovered ? 2.5 : 1.5,
+                      ),
+                      boxShadow: isDragging || isHovered ? [
+                        BoxShadow(
+                          color: (isDragging ? const Color(0xFFFFD700) : const Color(0xFF00D4AA))
+                              .withOpacity(0.5),
+                          blurRadius: 20,
+                        ),
+                      ] : null,
+                    ),
+                    child: Center(
+                      child: Text(p.symbol, style: const TextStyle(fontSize: 22)),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ]),
+        ),
+      );
+    });
+  }
+
+  int? _hitTest(Offset pos) {
+    for (int i = _particles.length - 1; i >= 0; i--) {
+      if ((_particles[i].pos - pos).distance < 35) return i;
+    }
+    return null;
+  }
+
+  Widget _buildRecipes() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('Рецепты алхимии',
+              style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.4), letterSpacing: 1)),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: _kElements.map((e) {
+            final done = _discovered.contains(e.result);
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: done ? e.color.withOpacity(0.15) : Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: done ? e.color.withOpacity(0.5) : Colors.white.withOpacity(0.07),
+                ),
+              ),
+              child: Column(children: [
+                Text(done ? e.emoji : '❓',
+                    style: TextStyle(fontSize: 18, color: done ? null : Colors.white.withOpacity(0.3))),
+                const SizedBox(height: 2),
+                Text(done ? e.result : '???',
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: done ? e.color : Colors.white.withOpacity(0.2),
+                        fontWeight: FontWeight.w700)),
+              ]),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        Center(child: Text('Перетаскивай частицы друг на друга',
+            style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.3)))),
+      ]),
+    );
+  }
+
+  Widget _buildResultFlash() {
+    return AnimatedBuilder(
+      animation: _flashAnim,
+      builder: (_, __) => Positioned(
+        top: MediaQuery.of(context).size.height * 0.35,
+        left: 40, right: 40,
+        child: Opacity(
+          opacity: (1 - _flashAnim.value).clamp(0, 1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.5), blurRadius: 20)],
+            ),
+            child: Text(
+              _lastResult ?? '',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildWinOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: ScaleTransition(scale: _winScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('✨', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Поток отлажен!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('$_captured частиц собрано',
-                style: const TextStyle(color: Color(0xFFBB00FF), fontSize: 14)),
-          ],
-        ))),
-      ),
-    );
-  }
-
-  Widget _buildFailOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: ScaleTransition(scale: _failScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('⏰', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Баг не исправлен!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Поймано: $_captured / ${_level.particlesNeeded}',
-                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14)),
-          ],
-        ))),
+  Widget _buildEndOverlay() {
+    final isSuccess = _phase == _AlchemyPhase.success;
+    return AnimatedBuilder(
+      animation: _resultCtrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _resultFade,
+        child: Container(
+          color: Colors.black.withOpacity(0.78),
+          child: Center(
+            child: ScaleTransition(
+              scale: _resultScale,
+              child: Container(
+                margin: const EdgeInsets.all(40),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F2D),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isSuccess ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(isSuccess ? '⚗️' : '💨', style: const TextStyle(fontSize: 56)),
+                  const SizedBox(height: 12),
+                  Text(
+                    isSuccess ? 'АЛХИМИК\nМАСТЕР!' : 'ПОПЫТКИ\nИСЧЕРПАНЫ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900,
+                      color: isSuccess ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B),
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isSuccess
+                        ? 'Создано ${_discovered.length} элементов!'
+                        : 'Создано ${_discovered.length} из ${_kElements.length}',
+                    style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.6)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _AlchemyPainter extends CustomPainter {
-  final List<_Particle> particles;
-  final Offset? attractorPos;
-  final _LevelConfig level;
-  final int captured;
-  final double w, h;
-
-  _AlchemyPainter({
-    required this.particles, required this.attractorPos,
-    required this.level, required this.captured,
-    required this.w, required this.h,
-  });
+// ─── Паинтеры ────────────────────────────────────────────────────────────────
+class _LinePainter extends CustomPainter {
+  final Offset from, to;
+  final Color color;
+  _LinePainter({required this.from, required this.to, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    _drawBackground(canvas, size);
-    _drawWalls(canvas);
-    _drawSpawn(canvas);
-    _drawCup(canvas);
-    _drawParticles(canvas);
-    if (attractorPos != null) _drawAttractor(canvas);
-  }
+    final paint = Paint()
+      ..color = color.withOpacity(0.6)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    final path = Path()..moveTo(from.dx, from.dy)..lineTo(to.dx, to.dy);
+    canvas.drawPath(path, paint);
 
-  void _drawBackground(Canvas canvas, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h),
-        Paint()..color = const Color(0xFF05001A));
-
-    // Туманность
-    for (int i = 0; i < 3; i++) {
-      final cx = w * (0.2 + i * 0.3);
-      final cy = h * 0.5;
-      canvas.drawCircle(Offset(cx, cy), w * 0.25,
-          Paint()..shader = RadialGradient(
-            colors: [
-              const Color(0xFF6600CC).withOpacity(0.06),
-              Colors.transparent,
-            ],
-          ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: w * 0.25)));
+    // Стрелка
+    final dir = (to - from);
+    final len = dir.distance;
+    if (len > 0) {
+      final norm = dir / len;
+      final arrowTip = to;
+      final left  = Offset(arrowTip.dx - norm.dx * 12 + norm.dy * 6, arrowTip.dy - norm.dy * 12 - norm.dx * 6);
+      final right = Offset(arrowTip.dx - norm.dx * 12 - norm.dy * 6, arrowTip.dy - norm.dy * 12 + norm.dx * 6);
+      canvas.drawLine(arrowTip, left, paint);
+      canvas.drawLine(arrowTip, right, paint);
     }
-  }
-
-  void _drawWalls(Canvas canvas) {
-    for (final wall in level.walls) {
-      final rect = Rect.fromLTWH(wall.left * w, wall.top * h,
-          (wall.right - wall.left) * w, (wall.bottom - wall.top) * h);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-        Paint()..color = const Color(0xFF2E1A5A).withOpacity(0.8),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-        Paint()..color = const Color(0xFF6600CC).withOpacity(0.5)
-          ..style = PaintingStyle.stroke..strokeWidth = 1.5,
-      );
-      // Свечение
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect.inflate(3), const Radius.circular(6)),
-        Paint()..color = const Color(0xFF6600CC).withOpacity(0.12)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
-    }
-  }
-
-  void _drawSpawn(Canvas canvas) {
-    final cx = level.spawnPoint.dx * w;
-    final cy = level.spawnPoint.dy * h;
-    canvas.drawCircle(Offset(cx, cy), 14,
-        Paint()..color = const Color(0xFF00AAFF).withOpacity(0.15)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
-    canvas.drawCircle(Offset(cx, cy), 6,
-        Paint()..color = const Color(0xFF00AAFF).withOpacity(0.8));
-
-    final tp = TextPainter(
-      text: const TextSpan(text: '⬇', style: TextStyle(color: Color(0xFF00AAFF), fontSize: 10)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, cy + 8));
-  }
-
-  void _drawCup(Canvas canvas) {
-    final cx = level.cupCenter.dx * w;
-    final cy = level.cupCenter.dy * h;
-    final r = level.cupRadius * min(w, h);
-    final progress = (captured / level.particlesNeeded).clamp(0.0, 1.0);
-
-    // Чаша (внешнее кольцо)
-    canvas.drawCircle(Offset(cx, cy), r + 8,
-        Paint()..color = kGold.withOpacity(0.1 + 0.2 * progress)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
-    canvas.drawCircle(Offset(cx, cy), r,
-        Paint()..color = kGold.withOpacity(0.15));
-    canvas.drawCircle(Offset(cx, cy), r,
-        Paint()..color = kGold.withOpacity(0.6 + 0.4 * progress)
-          ..style = PaintingStyle.stroke..strokeWidth = 2.5);
-
-    // Заполнение
-    if (progress > 0) {
-      canvas.drawCircle(Offset(cx, cy), r * progress * 0.85,
-          Paint()..color = kGold.withOpacity(0.3 * progress)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-    }
-
-    final tp = TextPainter(
-      text: const TextSpan(text: '🏆', style: TextStyle(fontSize: 18)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
-  }
-
-  void _drawParticles(Canvas canvas) {
-    for (final p in particles) {
-      final px = p.x * w;
-      final py = p.y * h;
-      final color = HSVColor.fromAHSV(1, p.hue % 360, 0.8, 1.0).toColor();
-
-      canvas.drawCircle(Offset(px, py), 3,
-          Paint()..color = color.withOpacity(p.life * 0.9)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
-      canvas.drawCircle(Offset(px, py), 1.5,
-          Paint()..color = color.withOpacity(p.life));
-    }
-  }
-
-  void _drawAttractor(Canvas canvas) {
-    final pos = attractorPos!;
-    final pulse = sin(DateTime.now().millisecondsSinceEpoch / 200.0) * 0.3 + 0.7;
-
-    canvas.drawCircle(pos, 30 * pulse,
-        Paint()..color = Colors.white.withOpacity(0.04 * pulse)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20));
-    canvas.drawCircle(pos, 14,
-        Paint()..color = Colors.black.withOpacity(0.6));
-    canvas.drawCircle(pos, 14,
-        Paint()..color = const Color(0xFFBB00FF).withOpacity(0.7 * pulse)
-          ..style = PaintingStyle.stroke..strokeWidth = 2);
-    canvas.drawCircle(pos, 4,
-        Paint()..color = const Color(0xFFBB00FF).withOpacity(pulse));
   }
 
   @override
-  bool shouldRepaint(_AlchemyPainter old) => true;
+  bool shouldRepaint(_LinePainter old) => old.from != from || old.to != to;
+}
+
+class _AlchemyBgPainter extends CustomPainter {
+  final double t;
+  static final _rng = Random(99);
+  _AlchemyBgPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = const Color(0xFF080412));
+
+    final blobs = [
+      [0.15, 0.25, 180.0, const Color(0xFF6A11CB)],
+      [0.85, 0.45, 150.0, const Color(0xFFFF6B35)],
+      [0.45, 0.75, 160.0, const Color(0xFFFFD700)],
+    ];
+    final p = Paint();
+    for (final b in blobs) {
+      final x = (b[0] as double) * size.width;
+      final y = (b[1] as double) * size.height + sin(t * pi * 2) * 15;
+      final r = (b[2] as double);
+      final c = b[3] as Color;
+      p.shader = RadialGradient(colors: [c.withOpacity(0.10), Colors.transparent])
+          .createShader(Rect.fromCircle(center: Offset(x, y), radius: r));
+      canvas.drawCircle(Offset(x, y), r, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AlchemyBgPainter old) => old.t != t;
 }

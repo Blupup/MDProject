@@ -1,118 +1,25 @@
 // lib/game/shadow_escape_game.dart
 //
-// «Побег тени» — минималистичный платформер. Чёрный силуэт, один акцент — неон.
-// Квест 4 «Cyber Life» — беги по скрытым уровням корпуса.
-//
+// 👾 ПОБЕГ ТЕНИ — уклоняйся от препятствий!
+// Персонаж бежит по трём дорожкам — свайпай влево/вправо чтобы переключаться.
+// Выживи 30 секунд — и ты победил! Жизней: 3.
+
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/common_widgets.dart';
 
-// ─── Платформа ────────────────────────────────────────────────────────────
-class _Platform {
-  double x, y;
-  final double width;
-  final bool isMoving;
-  double moveDir;
-  final double moveRange;
-  double moveOrigin;
+enum _ShadowPhase { countdown, playing, success, fail }
 
-  _Platform({
-    required this.x, required this.y, required this.width,
-    this.isMoving = false, this.moveDir = 1.0, this.moveRange = 0,
-  }) : moveOrigin = x;
-
-  Rect get rect => Rect.fromLTWH(x, y, width, 14);
-
-  void update(double dt) {
-    if (!isMoving) return;
-    x += moveDir * 120 * dt;
-    if ((x - moveOrigin).abs() > moveRange) {
-      moveDir *= -1;
-    }
-  }
+class _Obstacle {
+  int lane;
+  double y;
+  final double speed;
+  final Color color;
+  _Obstacle({required this.lane, required this.y, required this.speed, required this.color});
 }
 
-// ─── Монета ───────────────────────────────────────────────────────────────
-class _Coin {
-  final double x, y;
-  bool collected = false;
-  _Coin(this.x, this.y);
-  Rect get rect => Rect.fromLTWH(x - 8, y - 8, 16, 16);
-}
-
-// ─── Уровень ──────────────────────────────────────────────────────────────
-class _LevelData {
-  final String name;
-  final List<_Platform> platforms;
-  final List<_Coin> coins;
-  final Offset goal;
-
-  const _LevelData({
-    required this.name,
-    required this.platforms,
-    required this.coins,
-    required this.goal,
-  });
-}
-
-List<_LevelData> _buildLevels(double w, double h) => [
-  _LevelData(
-    name: 'Подвал',
-    goal: Offset(w - 60, h * 0.12),
-    coins: [
-      _Coin(w * 0.35, h * 0.72),
-      _Coin(w * 0.55, h * 0.52),
-      _Coin(w * 0.7,  h * 0.32),
-    ],
-    platforms: [
-      _Platform(x: 0,          y: h * 0.85, width: w),           // пол
-      _Platform(x: w * 0.2,    y: h * 0.68, width: w * 0.25),
-      _Platform(x: w * 0.5,    y: h * 0.5,  width: w * 0.22),
-      _Platform(x: w * 0.65,   y: h * 0.32, width: w * 0.25),
-      _Platform(x: w * 0.72,   y: h * 0.15, width: w * 0.28),    // финальная
-    ],
-  ),
-  _LevelData(
-    name: 'Игровая',
-    goal: Offset(w * 0.88, h * 0.1),
-    coins: [
-      _Coin(w * 0.3,  h * 0.6),
-      _Coin(w * 0.5,  h * 0.42),
-      _Coin(w * 0.72, h * 0.22),
-    ],
-    platforms: [
-      _Platform(x: 0, y: h * 0.85, width: w),
-      _Platform(x: w * 0.15, y: h * 0.65, width: w * 0.2,
-          isMoving: true, moveDir: 1, moveRange: 80),
-      _Platform(x: w * 0.45, y: h * 0.45, width: w * 0.18),
-      _Platform(x: w * 0.62, y: h * 0.28, width: w * 0.2,
-          isMoving: true, moveDir: -1, moveRange: 60),
-      _Platform(x: w * 0.72, y: h * 0.12, width: w * 0.28),
-    ],
-  ),
-  _LevelData(
-    name: 'Медиа-студия',
-    goal: Offset(w * 0.86, h * 0.07),
-    coins: [
-      _Coin(w * 0.22, h * 0.56),
-      _Coin(w * 0.44, h * 0.38),
-      _Coin(w * 0.66, h * 0.2),
-    ],
-    platforms: [
-      _Platform(x: 0, y: h * 0.85, width: w),
-      _Platform(x: w * 0.1, y: h * 0.65, width: w * 0.18),
-      _Platform(x: w * 0.3, y: h * 0.5,  width: w * 0.15,
-          isMoving: true, moveDir: 1, moveRange: 70),
-      _Platform(x: w * 0.5, y: h * 0.36, width: w * 0.18),
-      _Platform(x: w * 0.65, y: h * 0.22, width: w * 0.16,
-          isMoving: true, moveDir: -1, moveRange: 50),
-      _Platform(x: w * 0.72, y: h * 0.08, width: w * 0.28),
-    ],
-  ),
-];
-
-// ─── Главный виджет ───────────────────────────────────────────────────────
 class ShadowEscapeGame extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onFail;
@@ -123,542 +30,558 @@ class ShadowEscapeGame extends StatefulWidget {
   State<ShadowEscapeGame> createState() => _ShadowEscapeGameState();
 }
 
-class _ShadowEscapeGameState extends State<ShadowEscapeGame> with TickerProviderStateMixin {
-  // Размеры поля
-  double _w = 0, _h = 0;
-  List<_LevelData>? _levels;
+class _ShadowEscapeGameState extends State<ShadowEscapeGame>
+    with TickerProviderStateMixin {
+  // ─── Конфиг ─────────────────────────────────────────────────────────────
+  static const int _laneCount = 3;
+  static const double _playerY = 0.75; // относительно высоты
+  static const double _playerSize = 40;
+  static const double _obstacleSize = 38;
+  static const int _surviveDuration = 30; // секунд
 
-  int _levelIdx = 0;
+  // ─── Состояние ──────────────────────────────────────────────────────────
+  int _lane = 1;           // 0, 1, 2
+  int _targetLane = 1;
+  double _laneTransition = 0;
+  List<_Obstacle> _obstacles = [];
   int _lives = 3;
+  int _timeLeft = _surviveDuration;
+  int _countdown = 3;
   int _score = 0;
-  bool _won = false, _failed = false;
+  double _baseSpeed = 0.004;
+  _ShadowPhase _phase = _ShadowPhase.countdown;
+  bool _isHit = false;
 
-  // Игрок
-  double _px = 0, _py = 0;
-  double _pvx = 0, _pvy = 0;
-  bool _onGround = false;
-  bool _jumpPressed = false;
-  bool _facingRight = true;
-  double _playerW = 28, _playerH = 42;
-  int _jumpsLeft = 2;
+  // ─── Анимации ───────────────────────────────────────────────────────────
+  late AnimationController _gameCtrl;
+  late AnimationController _bgCtrl;
+  late AnimationController _resultCtrl;
+  late AnimationController _hitCtrl;
+  late AnimationController _playerCtrl;
+  late Animation<double> _bgAnim;
+  late Animation<double> _resultScale;
+  late Animation<double> _resultFade;
+  late Animation<double> _hitFlash;
+  late Animation<double> _playerBob;
 
-  // Анимация
-  late AnimationController _tickCtrl, _winCtrl, _failCtrl;
-  late Animation<double> _winScale, _failScale;
-  DateTime? _lastTick;
+  Timer? _countdownTimer;
+  Timer? _spawnTimer;
+  Timer? _scoreTimer;
+  final _rng = Random();
 
-  // Шлейф
-  final List<Offset> _trail = [];
+  static const _obstacleColors = [
+    Color(0xFFFF6B6B), Color(0xFF6A11CB), Color(0xFF2E86AB),
+    Color(0xFFFF6B35), Color(0xFFFFD700),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tickCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 600))
-      ..addListener(_tick)..forward();
-    _winCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _failCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _winScale  = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _winCtrl,  curve: Curves.elasticOut));
-    _failScale = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _failCtrl, curve: Curves.easeOut));
+
+    _bgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat(reverse: true);
+    _bgAnim = CurvedAnimation(parent: _bgCtrl, curve: Curves.easeInOut);
+
+    _gameCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 999));
+    _gameCtrl.addListener(_gameTick);
+
+    _resultCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _resultScale = Tween(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _resultCtrl, curve: Curves.elasticOut));
+    _resultFade  = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeOut);
+
+    _hitCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _hitFlash = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _hitCtrl, curve: Curves.easeOut));
+
+    _playerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _playerBob = Tween(begin: -4.0, end: 4.0).animate(CurvedAnimation(parent: _playerCtrl, curve: Curves.easeInOut));
+
+    _startCountdown();
   }
 
   @override
   void dispose() {
-    _tickCtrl.dispose(); _winCtrl.dispose(); _failCtrl.dispose();
+    _gameCtrl.dispose();
+    _bgCtrl.dispose();
+    _resultCtrl.dispose();
+    _hitCtrl.dispose();
+    _playerCtrl.dispose();
+    _countdownTimer?.cancel();
+    _spawnTimer?.cancel();
+    _scoreTimer?.cancel();
     super.dispose();
   }
 
-  void _initLevel() {
-    if (_levels == null) return;
-    final lv = _levels![_levelIdx];
-    _px = 60;
-    _py = _h * 0.75;
-    _pvx = 0; _pvy = 0;
-    _onGround = false;
-    _trail.clear();
-    for (final p in lv.platforms) { p.x = p.moveOrigin; }
-    for (final c in lv.coins) { c.collected = false; }
-  }
-
-  void _tick() {
-    if (_w == 0 || _levels == null || _won || _failed) return;
-    final now = DateTime.now();
-    final dt = _lastTick == null
-        ? 0.016
-        : (now.difference(_lastTick!).inMicroseconds / 1e6).clamp(0.0, 0.05);
-    _lastTick = now;
-
-    setState(() {
-      final lv = _levels![_levelIdx];
-
-      // Обновление платформ
-      for (final p in lv.platforms) p.update(dt);
-
-      // Движение игрока
-      const gravity = 900.0;
-      _pvy += gravity * dt;
-
-      // Авто-движение вправо
-      _pvx = 130;
-      if (_facingRight) _pvx = 130; else _pvx = -130;
-
-      _px += _pvx * dt;
-      _py += _pvy * dt;
-
-      // Шлейф
-      _trail.add(Offset(_px + _playerW / 2, _py + _playerH / 2));
-      if (_trail.length > 12) _trail.removeAt(0);
-
-      // Коллизии с платформами
-      _onGround = false;
-      final playerRect = Rect.fromLTWH(_px, _py, _playerW, _playerH);
-      for (final p in lv.platforms) {
-        final pRect = p.rect;
-        if (playerRect.overlaps(pRect)) {
-          final overlapBottom = playerRect.bottom - pRect.top;
-          final overlapTop    = pRect.bottom - playerRect.top;
-          final overlapLeft   = playerRect.right - pRect.left;
-          final overlapRight  = pRect.right - playerRect.left;
-          final minOverlap = [overlapBottom, overlapTop, overlapLeft, overlapRight].reduce(min);
-
-          if (minOverlap == overlapBottom && _pvy >= 0) {
-            _py = pRect.top - _playerH;
-            _pvy = 0;
-            _onGround = true;
-            _jumpsLeft = 2;
-          } else if (minOverlap == overlapTop && _pvy < 0) {
-            _py = pRect.bottom;
-            _pvy = 0;
-          } else if (minOverlap == overlapLeft) {
-            _px = pRect.left - _playerW;
-            _facingRight = false;
-          } else {
-            _px = pRect.right;
-            _facingRight = true;
-          }
-        }
-      }
-
-      // Стены экрана
-      if (_px < 0) { _px = 0; _facingRight = true; }
-      if (_px + _playerW > _w) { _px = _w - _playerW; _facingRight = false; }
-
-      // Упал вниз
-      if (_py > _h + 60) {
-        _lives--;
-        if (_lives <= 0) { _triggerFail(); return; }
-        _initLevel();
-        return;
-      }
-
-      // Монеты
-      final pr = Rect.fromLTWH(_px, _py, _playerW, _playerH);
-      for (final c in lv.coins) {
-        if (!c.collected && pr.overlaps(c.rect)) {
-          c.collected = true;
-          _score += 10;
-          HapticFeedback.selectionClick();
-        }
-      }
-
-      // Цель
-      final goalRect = Rect.fromLTWH(lv.goal.dx - 20, lv.goal.dy - 20, 40, 40);
-      if (pr.overlaps(goalRect)) {
-        _triggerWin();
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      setState(() => _countdown--);
+      if (_countdown <= 0) {
+        t.cancel();
+        setState(() => _phase = _ShadowPhase.playing);
+        _gameCtrl.forward();
+        _startSpawning();
+        _startTimer();
       }
     });
   }
 
-  void _onJump() {
-    if (_won || _failed) return;
-    if (_jumpsLeft > 0) {
+  void _startTimer() {
+    _scoreTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_phase != _ShadowPhase.playing) { t.cancel(); return; }
       setState(() {
-        _pvy = -580;
-        _jumpsLeft--;
+        _timeLeft--;
+        _score += 10;
+        _baseSpeed = 0.004 + (_surviveDuration - _timeLeft) * 0.0003;
       });
-      HapticFeedback.lightImpact();
-    }
-  }
-
-  void _triggerWin() {
-    if (_won) return;
-    setState(() => _won = true);
-    _tickCtrl.stop();
-    HapticFeedback.heavyImpact();
-    _winCtrl.forward();
-
-    if (_levelIdx < _levels!.length - 1) {
-      Future.delayed(const Duration(milliseconds: 1400), () {
-        if (!mounted) return;
-        setState(() {
-          _levelIdx++;
-          _won = false;
-          _lives = 3;
-        });
-        _winCtrl.reset();
-        _tickCtrl.forward(from: 0);
-        _lastTick = null;
-        _initLevel();
-      });
-    } else {
-      Future.delayed(const Duration(milliseconds: 2200), () {
-        if (mounted) widget.onSuccess();
-      });
-    }
-  }
-
-  void _triggerFail() {
-    if (_failed) return;
-    _tickCtrl.stop();
-    setState(() => _failed = true);
-    _failCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) widget.onFail();
+      if (_timeLeft <= 0) {
+        t.cancel();
+        _win();
+      }
     });
   }
 
+  void _startSpawning() {
+    _spawnTimer = Timer.periodic(const Duration(milliseconds: 1100), (t) {
+      if (_phase != _ShadowPhase.playing) { t.cancel(); return; }
+      // Спавн 1-2 препятствий
+      final lanes = [0, 1, 2]..shuffle(_rng);
+      final count = _rng.nextBool() ? 1 : 2;
+      for (int i = 0; i < count; i++) {
+        _obstacles.add(_Obstacle(
+          lane: lanes[i],
+          y: -0.1,
+          speed: _baseSpeed + _rng.nextDouble() * 0.002,
+          color: _obstacleColors[_rng.nextInt(_obstacleColors.length)],
+        ));
+      }
+    });
+  }
+
+  // ─── Тик ─────────────────────────────────────────────────────────────────
+  void _gameTick() {
+    if (_phase != _ShadowPhase.playing) return;
+    setState(() {
+      // Плавный переход дорожки
+      if (_lane != _targetLane) {
+        _laneTransition = (_laneTransition + 0.12).clamp(0, 1);
+        if (_laneTransition >= 1) {
+          _lane = _targetLane;
+          _laneTransition = 0;
+        }
+      }
+
+      // Двигаем препятствия
+      _obstacles.removeWhere((o) => o.y > 1.2);
+      for (final o in _obstacles) {
+        o.y += o.speed;
+      }
+
+      // Проверяем коллизию
+      if (!_isHit) _checkCollision();
+    });
+  }
+
+  double _laneX(int lane, double fieldW) {
+    return (lane + 0.5) / _laneCount;
+  }
+
+  double get _currentX {
+    if (_lane == _targetLane) return (_lane + 0.5) / _laneCount;
+    final start = (_lane + 0.5) / _laneCount;
+    final end   = (_targetLane + 0.5) / _laneCount;
+    return start + (end - start) * _laneTransition;
+  }
+
+  void _checkCollision() {
+    for (final o in _obstacles) {
+      final pX = _currentX;
+      final oX = (_lane == _targetLane) ? (_targetLane + 0.5) / _laneCount : pX;
+      // Только если о находится у игрока по Y
+      if ((o.y - _playerY).abs() < 0.07) {
+        // Близость по X (в дорожках)
+        if (o.lane == _targetLane || ((_lane != _targetLane) && o.lane == _lane)) {
+          _hit();
+          break;
+        }
+      }
+    }
+  }
+
+  void _hit() {
+    _isHit = true;
+    _lives--;
+    HapticFeedback.heavyImpact();
+    _hitCtrl.forward(from: 0).then((_) => _hitCtrl.reverse());
+
+    if (_lives <= 0) {
+      _fail();
+    } else {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) setState(() => _isHit = false);
+      });
+    }
+  }
+
+  void _win() {
+    _spawnTimer?.cancel();
+    setState(() => _phase = _ShadowPhase.success);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onSuccess);
+  }
+
+  void _fail() {
+    _spawnTimer?.cancel();
+    _scoreTimer?.cancel();
+    setState(() => _phase = _ShadowPhase.fail);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onFail);
+  }
+
+  void _swipe(int direction) {
+    if (_phase != _ShadowPhase.playing) return;
+    final newLane = (_targetLane + direction).clamp(0, _laneCount - 1);
+    if (newLane != _targetLane) {
+      HapticFeedback.selectionClick();
+      setState(() { _targetLane = newLane; _laneTransition = 0; });
+    }
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(children: [
-          _buildHeader(),
-          Expanded(child: Stack(children: [
-            GestureDetector(
-              onTapDown: (_) => _onJump(),
-              behavior: HitTestBehavior.opaque,
-              child: LayoutBuilder(builder: (ctx, cst) {
-                _w = cst.maxWidth; _h = cst.maxHeight;
-                if (_levels == null) {
-                  _levels = _buildLevels(_w, _h);
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(_initLevel);
-                  });
-                }
-                return AnimatedBuilder(
-                  animation: _tickCtrl,
-                  builder: (_, __) => CustomPaint(
-                    size: Size(_w, _h),
-                    painter: _ShadowPainter(
-                      levels: _levels,
-                      levelIdx: _levelIdx,
-                      px: _px, py: _py,
-                      playerW: _playerW, playerH: _playerH,
-                      trail: List.from(_trail),
-                      won: _won,
-                      onGround: _onGround,
-                      facingRight: _facingRight,
-                    ),
-                  ),
-                );
-              }),
-            ),
-            if (_won && _levelIdx == (_levels?.length ?? 1) - 1)
-              _buildWinOverlay(),
-            if (_failed)
-              _buildFailOverlay(),
-            // Кнопка прыжка
-            Positioned(
-              bottom: 20, right: 20,
-              child: GestureDetector(
-                onTapDown: (_) => _onJump(),
-                child: Container(
-                  width: 70, height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.08),
-                    border: Border.all(color: Colors.white.withOpacity(0.25), width: 2),
-                  ),
-                  child: const Icon(Icons.keyboard_arrow_up_rounded,
-                      color: Colors.white54, size: 36),
-                ),
-              ),
-            ),
-          ])),
-        ]),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      color: Colors.black,
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.grey.shade800, Colors.grey.shade600]),
-            borderRadius: BorderRadius.circular(10),
+      body: Stack(children: [
+        AnimatedBuilder(
+          animation: _bgAnim,
+          builder: (_, __) => CustomPaint(
+            size: MediaQuery.of(context).size,
+            painter: _ShadowBgPainter(_bgAnim.value),
           ),
-          child: const Row(children: [
-            Text('👾', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 5),
-            Text('Побег тени',
-                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-          ]),
         ),
-        const Spacer(),
-        if (_levels != null)
-          Text('${_levels![_levelIdx].name}',
-              style: const TextStyle(color: Colors.white38, fontSize: 11)),
-        const SizedBox(width: 10),
-        Text('Очки: $_score',
-            style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        const SizedBox(width: 10),
-        Row(children: List.generate(3, (i) => Padding(
-          padding: const EdgeInsets.only(left: 3),
-          child: Icon(
-            i < _lives ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: i < _lives ? kRed : Colors.white12,
-            size: 18,
+
+        // Красная вспышка при ударе
+        AnimatedBuilder(
+          animation: _hitFlash,
+          builder: (_, __) => IgnorePointer(
+            child: Container(
+              color: const Color(0xFFFF6B6B).withOpacity(_hitFlash.value * 0.25),
+            ),
           ),
-        ))),
+        ),
+
+        SafeArea(child: Column(children: [
+          _buildHeader(),
+          Expanded(child: _buildGame()),
+          _buildControls(),
+          const SizedBox(height: 16),
+        ])),
+
+        // Обратный отсчёт
+        if (_phase == _ShadowPhase.countdown)
+          _buildCountdown(),
+
+        // Результат
+        if (_phase == _ShadowPhase.success || _phase == _ShadowPhase.fail)
+          _buildResultOverlay(),
       ]),
     );
   }
 
-  Widget _buildWinOverlay() {
-    return Positioned.fill(
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ShaderMask(
+          shaderCallback: (b) => const LinearGradient(
+              colors: [Color(0xFF6A11CB), Color(0xFFFF6B6B)]).createShader(b),
+          child: const Text('ПОБЕГ ТЕНИ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                  color: Colors.white, letterSpacing: 1.5)),
+        ),
+        const Spacer(),
+        // Жизни
+        Row(children: [
+          ...List.generate(3, (i) => Padding(
+            padding: const EdgeInsets.only(left: 3),
+            child: Icon(Icons.favorite_rounded, size: 18,
+                color: i < _lives ? const Color(0xFFFF6B6B) : Colors.white12),
+          )),
+          const SizedBox(width: 8),
+          // Таймер
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _timeLeft <= 5
+                  ? const Color(0xFFFF6B6B).withOpacity(0.2)
+                  : Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: _timeLeft <= 5 ? const Color(0xFFFF6B6B).withOpacity(0.5) : Colors.white12),
+            ),
+            child: Text('$_timeLeft с',
+                style: TextStyle(
+                  color: _timeLeft <= 5 ? const Color(0xFFFF6B6B) : Colors.white70,
+                  fontSize: 12, fontWeight: FontWeight.w800,
+                )),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _buildGame() {
+    return GestureDetector(
+      onHorizontalDragEnd: (d) {
+        if (d.primaryVelocity != null) {
+          _swipe(d.primaryVelocity! < 0 ? -1 : 1);
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: LayoutBuilder(builder: (ctx, constraints) {
+        final fw = constraints.maxWidth;
+        final fh = constraints.maxHeight;
+        final laneW = fw / _laneCount;
+
+        return Container(
+          margin: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.07)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(children: [
+            // Дорожки
+            CustomPaint(
+              size: Size(fw - 24, fh),
+              painter: _LanesPainter(_laneCount, _targetLane),
+            ),
+
+            // Препятствия
+            ..._obstacles.map((o) {
+              final x = (o.lane + 0.5) / _laneCount * (fw - 24) - _obstacleSize / 2;
+              final y = o.y * fh - _obstacleSize / 2;
+              return Positioned(
+                left: x, top: y,
+                child: Container(
+                  width: _obstacleSize, height: _obstacleSize,
+                  decoration: BoxDecoration(
+                    color: o.color.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                    boxShadow: [BoxShadow(color: o.color.withOpacity(0.5), blurRadius: 12)],
+                  ),
+                  child: const Center(child: Text('⚡', style: TextStyle(fontSize: 18))),
+                ),
+              );
+            }).toList(),
+
+            // Игрок
+            AnimatedBuilder(
+              animation: _playerBob,
+              builder: (_, __) {
+                final px = _currentX * (fw - 24) - _playerSize / 2;
+                final py = _playerY * fh - _playerSize / 2 + _playerBob.value;
+
+                return Positioned(
+                  left: px, top: py,
+                  child: AnimatedOpacity(
+                    opacity: _isHit ? 0.3 : 1.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Container(
+                      width: _playerSize, height: _playerSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFF00D4AA), Color(0xFF2E86AB)]),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF00D4AA).withOpacity(0.6), blurRadius: 16),
+                        ],
+                      ),
+                      child: const Center(child: Text('👾', style: TextStyle(fontSize: 20))),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Widget _buildControls() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+        _controlBtn(Icons.arrow_back_rounded, () => _swipe(-1)),
+        Column(children: [
+          const Icon(Icons.swipe_rounded, color: Colors.white30, size: 16),
+          Text('Свайп или кнопки', style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3))),
+        ]),
+        _controlBtn(Icons.arrow_forward_rounded, () => _swipe(1)),
+      ]),
+    );
+  }
+
+  Widget _controlBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTapDown: (_) => onTap(),
       child: Container(
-        color: Colors.black.withOpacity(0.75),
-        child: ScaleTransition(scale: _winScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🌟', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Уровень пройден!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Очков: $_score',
-                style: const TextStyle(color: Colors.white54, fontSize: 14)),
-          ],
-        ))),
+        width: 54, height: 54,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.12)),
+        ),
+        child: Icon(icon, color: Colors.white60, size: 24),
       ),
     );
   }
 
-  Widget _buildFailOverlay() {
-    return Positioned.fill(
+  Widget _buildCountdown() {
+    return Center(
       child: Container(
-        color: Colors.black.withOpacity(0.75),
-        child: ScaleTransition(scale: _failScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('💀', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Тень поглотила!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Очков набрано: $_score',
-                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14)),
-          ],
-        ))),
+        width: 120, height: 120,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withOpacity(0.8),
+          border: Border.all(color: const Color(0xFF00D4AA), width: 3),
+          boxShadow: [BoxShadow(color: const Color(0xFF00D4AA).withOpacity(0.4), blurRadius: 30)],
+        ),
+        child: Center(
+          child: Text(
+            _countdown > 0 ? '$_countdown' : 'GO!',
+            style: const TextStyle(
+              fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white,
+              shadows: [Shadow(color: Color(0xFF00D4AA), blurRadius: 16)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultOverlay() {
+    final isSuccess = _phase == _ShadowPhase.success;
+    return AnimatedBuilder(
+      animation: _resultCtrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _resultFade,
+        child: Container(
+          color: Colors.black.withOpacity(0.78),
+          child: Center(
+            child: ScaleTransition(
+              scale: _resultScale,
+              child: Container(
+                margin: const EdgeInsets.all(40),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F2D),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isSuccess ? const Color(0xFF00D4AA) : const Color(0xFFFF6B6B),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(isSuccess ? '🏃' : '💀', style: const TextStyle(fontSize: 56)),
+                  const SizedBox(height: 12),
+                  Text(
+                    isSuccess ? 'ПОБЕГ\nУДАЛСЯ!' : 'ТЕНЬ\nПОЙМАНА',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900,
+                      color: isSuccess ? const Color(0xFF00D4AA) : const Color(0xFFFF6B6B),
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isSuccess ? 'Выжил $_surviveDuration секунд!\nОчки: $_score' : 'Слишком много ударов',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.6)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ShadowPainter extends CustomPainter {
-  final List<_LevelData>? levels;
-  final int levelIdx;
-  final double px, py, playerW, playerH;
-  final List<Offset> trail;
-  final bool won, onGround, facingRight;
-
-  _ShadowPainter({
-    required this.levels, required this.levelIdx,
-    required this.px, required this.py,
-    required this.playerW, required this.playerH,
-    required this.trail, required this.won,
-    required this.onGround, required this.facingRight,
-  });
-
-  // Акцентный цвет — неоново-красный
-  static const _accent = Color(0xFFFF2244);
+// ─── Паинтеры ────────────────────────────────────────────────────────────────
+class _LanesPainter extends CustomPainter {
+  final int lanes;
+  final int activeLane;
+  _LanesPainter(this.lanes, this.activeLane);
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (levels == null) return;
-    final lv = levels![levelIdx];
+    final laneW = size.width / lanes;
+    final divPaint = Paint()..color = Colors.white.withOpacity(0.07)..strokeWidth = 1;
+    final activePaint = Paint()
+      ..color = const Color(0xFF00D4AA).withOpacity(0.05);
 
-    _drawBackground(canvas, size);
-    _drawPlatforms(canvas, lv);
-    _drawCoins(canvas, lv);
-    _drawGoal(canvas, lv);
-    _drawTrail(canvas);
-    _drawPlayer(canvas);
-  }
-
-  void _drawBackground(Canvas canvas, Size size) {
-    // Чёрный фон
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
-        Paint()..color = const Color(0xFF080808));
-
-    // Силуэтные облака на фоне
-    for (int i = 0; i < 5; i++) {
-      final cx = size.width * (0.1 + i * 0.2);
-      final cy = size.height * 0.25;
-      canvas.drawOval(
-        Rect.fromCenter(center: Offset(cx, cy), width: 120, height: 30),
-        Paint()..color = const Color(0xFF111111),
-      );
-    }
-
-    // Туман снизу
+    // Подсветка активной дорожки
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.8, size.width, size.height * 0.2),
-      Paint()..shader = LinearGradient(
-        colors: [Colors.transparent, _accent.withOpacity(0.04)],
-        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, size.height * 0.8, size.width, size.height * 0.2)),
-    );
-  }
+        Rect.fromLTWH(activeLane * laneW, 0, laneW, size.height), activePaint);
 
-  void _drawPlatforms(Canvas canvas, _LevelData lv) {
-    for (final p in lv.platforms) {
-      final r = p.rect;
-      // Тело
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(r, const Radius.circular(4)),
-        Paint()..color = const Color(0xFF1A1A1A),
-      );
-      // Акцентная верхняя грань
-      canvas.drawLine(
-        Offset(r.left + 4, r.top + 2),
-        Offset(r.right - 4, r.top + 2),
-        Paint()..color = _accent.withOpacity(0.7)..strokeWidth = 2..strokeCap = StrokeCap.round,
-      );
-      // Свечение
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(r.inflate(2), const Radius.circular(5)),
-        Paint()..color = _accent.withOpacity(0.08)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-    }
-  }
-
-  void _drawCoins(Canvas canvas, _LevelData lv) {
-    for (final c in lv.coins) {
-      if (c.collected) continue;
-      canvas.drawCircle(Offset(c.x, c.y), 8,
-          Paint()..color = _accent.withOpacity(0.15)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-      canvas.drawCircle(Offset(c.x, c.y), 5,
-          Paint()..color = _accent.withOpacity(0.8));
-      canvas.drawCircle(Offset(c.x, c.y), 5,
-          Paint()..color = _accent
-            ..style = PaintingStyle.stroke..strokeWidth = 1.5);
-    }
-  }
-
-  void _drawGoal(Canvas canvas, _LevelData lv) {
-    final pulse = 0.7 + 0.3 * sin(DateTime.now().millisecondsSinceEpoch / 400.0);
-    canvas.drawCircle(lv.goal, 22 * pulse,
-        Paint()..color = Colors.white.withOpacity(0.06 * pulse)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
-    canvas.drawCircle(lv.goal, 14,
-        Paint()..color = Colors.white.withOpacity(0.9));
-    canvas.drawCircle(lv.goal, 14,
-        Paint()..color = Colors.white
-          ..style = PaintingStyle.stroke..strokeWidth = 2);
-
-    final tp = TextPainter(
-      text: const TextSpan(text: '🚪', style: TextStyle(fontSize: 16)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, lv.goal - Offset(tp.width / 2, tp.height / 2));
-  }
-
-  void _drawTrail(Canvas canvas) {
-    for (int i = 1; i < trail.length; i++) {
-      final t = i / trail.length;
-      canvas.drawCircle(trail[i], 3 * t,
-          Paint()..color = _accent.withOpacity(t * 0.35));
-    }
-  }
-
-  void _drawPlayer(Canvas canvas) {
-    if (px == 0 && py == 0) return;
-    final center = Offset(px + playerW / 2, py + playerH / 2);
-
-    // Тень под игроком
-    if (onGround) {
-      canvas.drawOval(
-        Rect.fromCenter(center: Offset(center.dx, py + playerH + 2), width: playerW * 0.8, height: 5),
-        Paint()..color = _accent.withOpacity(0.25)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+    // Разделители дорожек
+    for (int i = 1; i < lanes; i++) {
+      canvas.drawLine(Offset(i * laneW, 0), Offset(i * laneW, size.height), divPaint);
     }
 
-    // Свечение
-    canvas.drawRect(
-      Rect.fromLTWH(px - 4, py - 4, playerW + 8, playerH + 8),
-      Paint()..color = _accent.withOpacity(0.08)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-
-    // Тело — чёрный силуэт
-    canvas.save();
-    if (!facingRight) {
-      canvas.translate(px + playerW / 2, 0);
-      canvas.scale(-1, 1);
-      canvas.translate(-(px + playerW / 2), 0);
+    // Горизонтальные разметки
+    final markPaint = Paint()..color = Colors.white.withOpacity(0.03)..strokeWidth = 1;
+    for (double y = 0; y < size.height; y += 60) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), markPaint);
     }
-
-    // Голова
-    canvas.drawOval(
-      Rect.fromLTWH(px + 4, py, playerW - 8, playerH * 0.42),
-      Paint()..color = Colors.black,
-    );
-    // Тело
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(px + 2, py + playerH * 0.38, playerW - 4, playerH * 0.42),
-        const Radius.circular(3),
-      ),
-      Paint()..color = Colors.black,
-    );
-    // Ноги
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(px + 2, py + playerH * 0.76, (playerW - 6) / 2, playerH * 0.24),
-        const Radius.circular(3),
-      ),
-      Paint()..color = Colors.black,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(px + (playerW) / 2 + 1, py + playerH * 0.76, (playerW - 6) / 2, playerH * 0.24),
-        const Radius.circular(3),
-      ),
-      Paint()..color = Colors.black,
-    );
-
-    // Контур — акцентный
-    final outlinePaint = Paint()
-      ..color = _accent.withOpacity(0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    canvas.drawOval(Rect.fromLTWH(px + 4, py, playerW - 8, playerH * 0.42), outlinePaint);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(px + 2, py + playerH * 0.38, playerW - 4, playerH * 0.42),
-        const Radius.circular(3),
-      ),
-      outlinePaint,
-    );
-
-    // Глаза — белые точки
-    canvas.drawCircle(Offset(px + playerW * 0.55, py + playerH * 0.18), 3,
-        Paint()..color = Colors.white);
-    canvas.drawCircle(Offset(px + playerW * 0.55, py + playerH * 0.18), 1.5,
-        Paint()..color = Colors.black);
-
-    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_ShadowPainter old) => true;
+  bool shouldRepaint(_LanesPainter old) => old.activeLane != activeLane;
+}
+
+class _ShadowBgPainter extends CustomPainter {
+  final double t;
+  _ShadowBgPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = const Color(0xFF06020E));
+
+    final p = Paint();
+    final blobs = [
+      [0.2, 0.2, 200.0, const Color(0xFF6A11CB)],
+      [0.8, 0.7, 180.0, const Color(0xFFFF3D71)],
+    ];
+    for (final b in blobs) {
+      final x = (b[0] as double) * size.width;
+      final y = (b[1] as double) * size.height;
+      final r = (b[2] as double) + sin(t * pi * 2) * 20;
+      final c = b[3] as Color;
+      p.shader = RadialGradient(colors: [c.withOpacity(0.08), Colors.transparent])
+          .createShader(Rect.fromCircle(center: Offset(x, y), radius: r));
+      canvas.drawCircle(Offset(x, y), r, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ShadowBgPainter old) => old.t != t;
 }

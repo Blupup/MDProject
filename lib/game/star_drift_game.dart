@@ -1,49 +1,32 @@
 // lib/game/star_drift_game.dart
 //
-// «Звёздный дрифт» — уклоняйся от астероидов, собирай щиты.
-// Квест 5 «Путь к диплому» — финальный забег через весь корпус.
-//
+// 🚀 ЗВЁЗДНЫЙ ДРИФТ — собирай звёзды на корабле!
+// Управляй кораблём касанием: держи палец — летишь вверх, отпусти — вниз.
+// Собери 10 звёзд и не врезайся в астероиды. Жизней: 3.
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/common_widgets.dart';
 
-// ─── Астероид ─────────────────────────────────────────────────────────────
-class _Asteroid {
-  double x, y;
-  final double radius;
-  final double speed;
-  final double rotSpeed;
-  double rotation = 0;
-  final int sides;    // количество вершин (3–7)
-  final Color color;
+enum _StarPhase { playing, success, fail }
 
-  _Asteroid({
-    required this.x, required this.y,
-    required this.radius, required this.speed,
-    required this.rotSpeed, required this.sides,
-    required this.color,
+class _FloatingObj {
+  double x;     // 0..1
+  double y;     // 0..1
+  final double speed;
+  final bool isStar;
+  final Color color;
+  double scale;
+  bool collected;
+
+  _FloatingObj({
+    required this.x, required this.y, required this.speed,
+    required this.isStar, required this.color,
+    this.scale = 1.0, this.collected = false,
   });
 }
 
-// ─── Щит / Предмет ────────────────────────────────────────────────────────
-class _Pickup {
-  double x, y;
-  final bool isShield;
-  double pulse = 0;
-  _Pickup({required this.x, required this.y, required this.isShield});
-}
-
-// ─── Частица взрыва ───────────────────────────────────────────────────────
-class _Spark {
-  double x, y, vx, vy, life;
-  final Color color;
-  _Spark({required this.x, required this.y,
-    required this.vx, required this.vy,
-    required this.color}) : life = 1.0;
-}
-
-// ─── Главный виджет ───────────────────────────────────────────────────────
 class StarDriftGame extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onFail;
@@ -54,538 +37,484 @@ class StarDriftGame extends StatefulWidget {
   State<StarDriftGame> createState() => _StarDriftGameState();
 }
 
-class _StarDriftGameState extends State<StarDriftGame> with TickerProviderStateMixin {
-  double _w = 0, _h = 0;
+class _StarDriftGameState extends State<StarDriftGame>
+    with TickerProviderStateMixin {
+  // ─── Конфиг ─────────────────────────────────────────────────────────────
+  static const int _targetStars = 10;
+  static const double _gravity = 0.0015;
+  static const double _thrust  = 0.004;
+  static const double _shipSize = 38;
+  static const double _objSize  = 32;
 
-  // Игрок
-  double _px = 0, _py = 0;
-  double _targetPy = 0;
+  // ─── Состояние ──────────────────────────────────────────────────────────
+  double _shipY = 0.5;
+  double _velY  = 0.0;
+  bool _pressing = false;
+  List<_FloatingObj> _objects = [];
+  int _starsCollected = 0;
+  int _lives = 3;
+  _StarPhase _phase = _StarPhase.playing;
+  double _gameSpeed = 0.003;
+  bool _isHit = false;
+  double _shipTilt = 0;
+  double _bgOffset = 0;
+  int _frameCount = 0;
 
-  // Игровые объекты
-  final List<_Asteroid> _asteroids = [];
-  final List<_Pickup> _pickups = [];
-  final List<_Spark> _sparks = [];
-  final List<Offset> _trail = [];
-
-  // Состояние
-  int _shield = 0;     // секунды щита
-  int _score = 0;
-  int _timeLeft = 45;
-  double _speed = 1.0; // множитель скорости
-  bool _won = false, _failed = false;
+  // ─── Анимации ───────────────────────────────────────────────────────────
+  late AnimationController _gameCtrl;
+  late AnimationController _bgCtrl;
+  late AnimationController _resultCtrl;
+  late AnimationController _hitCtrl;
+  late Animation<double> _resultScale;
+  late Animation<double> _resultFade;
+  late Animation<double> _hitFlash;
 
   final _rng = Random();
-  double _spawnAccum = 0;
-  double _pickupAccum = 0;
-  DateTime? _lastTick;
 
-  late AnimationController _tickCtrl, _winCtrl, _failCtrl;
-  late Animation<double> _winScale, _failScale;
+  static const _starColors = [
+    Color(0xFFFFD700), Color(0xFF00D4AA), Color(0xFFFF6B35), Color(0xFFFF6B6B),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tickCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 300))
-      ..addListener(_tick)..forward();
-    _winCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _failCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _winScale  = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _winCtrl,  curve: Curves.elasticOut));
-    _failScale = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _failCtrl, curve: Curves.easeOut));
 
-    _startTimer();
+    _bgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 999))..forward();
+
+    _gameCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 999));
+    _gameCtrl.addListener(_tick);
+    _gameCtrl.forward();
+
+    _resultCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _resultScale = Tween(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _resultCtrl, curve: Curves.elasticOut));
+    _resultFade  = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeOut);
+
+    _hitCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _hitFlash = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _hitCtrl, curve: Curves.easeOut));
+
+    // Начальные объекты
+    _spawnInitial();
+  }
+
+  void _spawnInitial() {
+    for (int i = 0; i < 6; i++) {
+      _objects.add(_makeObj(1.0 + i * 0.25));
+    }
+  }
+
+  _FloatingObj _makeObj(double startX) {
+    final isStar = _rng.nextDouble() > 0.4;
+    return _FloatingObj(
+      x: startX,
+      y: 0.1 + _rng.nextDouble() * 0.8,
+      speed: _gameSpeed + _rng.nextDouble() * 0.002,
+      isStar: isStar,
+      color: isStar ? _starColors[_rng.nextInt(_starColors.length)] : const Color(0xFF8B6914),
+    );
   }
 
   @override
   void dispose() {
-    _tickCtrl.dispose(); _winCtrl.dispose(); _failCtrl.dispose();
+    _gameCtrl.dispose();
+    _bgCtrl.dispose();
+    _resultCtrl.dispose();
+    _hitCtrl.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted || _won || _failed) return false;
-      setState(() {
-        _timeLeft--;
-        _shield = (_shield - 1).clamp(0, 99);
-        _speed  = 1.0 + (45 - _timeLeft) * 0.02; // ускорение с каждой секундой
-        _score  += 5;
-      });
-      if (_timeLeft <= 0) { _triggerWin(); return false; }
-      return true;
-    });
-  }
-
+  // ─── Тик ─────────────────────────────────────────────────────────────────
   void _tick() {
-    if (_w == 0 || _won || _failed) return;
-    final now = DateTime.now();
-    final dt = _lastTick == null
-        ? 0.016
-        : (now.difference(_lastTick!).inMicroseconds / 1e6).clamp(0.0, 0.05);
-    _lastTick = now;
-
+    if (_phase != _StarPhase.playing) return;
     setState(() {
-      // Инициализация позиции
-      if (_px == 0) { _px = 80; _py = _h / 2; _targetPy = _py; }
+      _frameCount++;
+      _bgOffset += 0.5;
 
-      // Плавное движение игрока к цели
-      _py += (_targetPy - _py) * 8 * dt;
-      _py = _py.clamp(30, _h - 30);
+      // Физика корабля
+      _velY += _pressing ? -_thrust : _gravity;
+      _velY = _velY.clamp(-0.018, 0.018);
+      _shipY = (_shipY + _velY).clamp(0.05, 0.95);
+      _shipTilt = (_velY * -40).clamp(-30, 30);
 
-      // Шлейф
-      _trail.add(Offset(_px, _py));
-      if (_trail.length > 20) _trail.removeAt(0);
-
-      // Спавн астероидов
-      _spawnAccum += dt * (2.5 + _speed * 1.5);
-      while (_spawnAccum >= 1) {
-        _spawnAccum -= 1;
-        _spawnAsteroid();
+      // Спавн новых объектов
+      if (_frameCount % 60 == 0) {
+        _objects.add(_makeObj(1.05));
+        _gameSpeed = min(0.008, _gameSpeed + 0.0001);
       }
 
-      // Спавн предметов
-      _pickupAccum += dt;
-      if (_pickupAccum > 3) {
-        _pickupAccum = 0;
-        _pickups.add(_Pickup(
-          x: _w + 20,
-          y: 40 + _rng.nextDouble() * (_h - 80),
-          isShield: _rng.nextDouble() < 0.3,
-        ));
+      // Двигаем объекты
+      for (final o in _objects) {
+        o.x -= o.speed;
+        o.scale = o.collected ? max(0, o.scale - 0.15) : 1.0;
       }
+      _objects.removeWhere((o) => o.x < -0.15 || (o.collected && o.scale <= 0));
 
-      // Обновление астероидов
-      final baseSpd = 200 * _speed;
-      for (final a in _asteroids) {
-        a.x -= (baseSpd + a.speed) * dt;
-        a.rotation += a.rotSpeed * dt;
-      }
-      _asteroids.removeWhere((a) => a.x + a.radius < 0);
-
-      // Обновление предметов
-      for (final p in _pickups) {
-        p.x -= (baseSpd * 0.8) * dt;
-        p.pulse += dt * 3;
-      }
-      _pickups.removeWhere((p) => p.x < -20);
-
-      // Обновление искр
-      for (final s in _sparks) {
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-        s.vx *= 0.96;
-        s.vy *= 0.96;
-        s.life -= dt * 2.5;
-      }
-      _sparks.removeWhere((s) => s.life <= 0);
-
-      // Коллизии: предметы
-      _pickups.removeWhere((p) {
-        if ((p.x - _px).abs() < 22 && (p.y - _py).abs() < 22) {
-          if (p.isShield) { _shield = 5; HapticFeedback.mediumImpact(); }
-          else { _score += 20; HapticFeedback.selectionClick(); }
-          return true;
-        }
-        return false;
-      });
-
-      // Коллизии: астероиды
-      for (final a in _asteroids) {
-        final dx = a.x - _px;
-        final dy = a.y - _py;
-        final dist = sqrt(dx * dx + dy * dy);
-        if (dist < a.radius + 14) {
-          if (_shield > 0) {
-            // Щит поглощает
-            _shield = 0;
-            _explode(a.x, a.y, a.color);
-            _asteroids.remove(a);
-            HapticFeedback.mediumImpact();
-            break;
-          } else {
-            _triggerFail();
-            return;
-          }
-        }
-      }
+      // Коллизии
+      if (!_isHit) _checkCollisions();
     });
   }
 
-  void _spawnAsteroid() {
-    final colors = [
-      const Color(0xFF607D8B),
-      const Color(0xFF455A64),
-      const Color(0xFF546E7A),
-      const Color(0xFF78909C),
-    ];
-    final r = 14.0 + _rng.nextDouble() * 22;
-    _asteroids.add(_Asteroid(
-      x: _w + r,
-      y: r + _rng.nextDouble() * (_h - r * 2),
-      radius: r,
-      speed: 40 + _rng.nextDouble() * 80,
-      rotSpeed: (_rng.nextDouble() - 0.5) * 3,
-      sides: 4 + _rng.nextInt(4),
-      color: colors[_rng.nextInt(colors.length)],
-    ));
-  }
-
-  void _explode(double x, double y, Color color) {
-    for (int i = 0; i < 12; i++) {
-      final angle = _rng.nextDouble() * 2 * pi;
-      final speed = 80 + _rng.nextDouble() * 160;
-      _sparks.add(_Spark(
-        x: x, y: y,
-        vx: cos(angle) * speed,
-        vy: sin(angle) * speed,
-        color: color,
-      ));
+  void _checkCollisions() {
+    for (final o in _objects) {
+      if (o.collected) continue;
+      final dx = (o.x - 0.12).abs();
+      final dy = (o.y - _shipY).abs();
+      if (dx < 0.06 && dy < 0.06) {
+        if (o.isStar) {
+          o.collected = true;
+          _starsCollected++;
+          HapticFeedback.lightImpact();
+          if (_starsCollected >= _targetStars) {
+            _win();
+          }
+        } else {
+          _lives--;
+          _isHit = true;
+          HapticFeedback.heavyImpact();
+          _hitCtrl.forward(from: 0).then((_) => _hitCtrl.reverse());
+          if (_lives <= 0) {
+            _lose();
+          } else {
+            Future.delayed(const Duration(milliseconds: 700), () {
+              if (mounted) setState(() => _isHit = false);
+            });
+          }
+          break;
+        }
+      }
     }
   }
 
-  void _triggerWin() {
-    if (_won) return;
-    _tickCtrl.stop();
-    setState(() => _won = true);
-    HapticFeedback.heavyImpact();
-    _winCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) widget.onSuccess();
-    });
+  void _win() {
+    setState(() => _phase = _StarPhase.success);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onSuccess);
   }
 
-  void _triggerFail() {
-    if (_failed) return;
-    _tickCtrl.stop();
-    _explode(_px, _py, kGreen);
-    setState(() => _failed = true);
-    _failCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) widget.onFail();
-    });
+  void _lose() {
+    setState(() => _phase = _StarPhase.fail);
+    _resultCtrl.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), widget.onFail);
   }
 
+  // ─── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(children: [
-          _buildHeader(),
-          Expanded(child: Stack(children: [
-            GestureDetector(
-              onVerticalDragUpdate: (d) {
-                setState(() => _targetPy = (_targetPy + d.delta.dy).clamp(30, _h - 30));
-              },
-              onPanUpdate: (d) {
-                setState(() {
-                  _targetPy = (_targetPy + d.delta.dy).clamp(30, _h - 30);
-                });
-              },
-              behavior: HitTestBehavior.opaque,
-              child: LayoutBuilder(builder: (ctx, cst) {
-                _w = cst.maxWidth; _h = cst.maxHeight;
-                return AnimatedBuilder(
-                  animation: _tickCtrl,
-                  builder: (_, __) => CustomPaint(
-                    size: Size(_w, _h),
-                    painter: _StarDriftPainter(
-                      asteroids: List.from(_asteroids),
-                      pickups: List.from(_pickups),
-                      sparks: List.from(_sparks),
-                      trail: List.from(_trail),
-                      px: _px, py: _py,
-                      shield: _shield,
-                      won: _won, failed: _failed,
-                    ),
-                  ),
-                );
-              }),
-            ),
-            if (_won) _buildWinOverlay(),
-            if (_failed) _buildFailOverlay(),
-          ])),
-        ]),
-      ),
+      body: Stack(children: [
+        // Фон — звёзды
+        AnimatedBuilder(
+          animation: _bgCtrl,
+          builder: (_, __) => CustomPaint(
+            size: MediaQuery.of(context).size,
+            painter: _SpaceBgPainter(_bgOffset),
+          ),
+        ),
+
+        // Вспышка при ударе
+        AnimatedBuilder(
+          animation: _hitFlash,
+          builder: (_, __) => IgnorePointer(
+            child: Container(
+                color: const Color(0xFFFF6B6B).withOpacity(_hitFlash.value * 0.3)),
+          ),
+        ),
+
+        SafeArea(
+          child: Column(children: [
+            _buildHeader(),
+            Expanded(child: _buildGameArea()),
+            _buildHint(),
+            const SizedBox(height: 20),
+          ]),
+        ),
+
+        if (_phase != _StarPhase.playing)
+          _buildResultOverlay(),
+      ]),
     );
   }
 
   Widget _buildHeader() {
-    final timeColor = _timeLeft > 20 ? kGreen : (_timeLeft > 8 ? Colors.orange : kRed);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      color: Colors.black,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF00BCD4)]),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: const Color(0xFF00BCD4).withOpacity(0.4), blurRadius: 10)],
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
           ),
-          child: const Row(children: [
-            Text('🚀', style: TextStyle(fontSize: 13)),
-            SizedBox(width: 5),
-            Text('Звёздный дрифт',
-                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-          ]),
+        ),
+        const SizedBox(width: 12),
+        ShaderMask(
+          shaderCallback: (b) => const LinearGradient(
+              colors: [Color(0xFFFF3D71), Color(0xFFFF6B35)]).createShader(b),
+          child: const Text('ЗВЁЗДНЫЙ ДРИФТ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                  color: Colors.white, letterSpacing: 1.5)),
         ),
         const Spacer(),
-        if (_shield > 0)
+        // Жизни
+        Row(children: [
+          ...List.generate(3, (i) => Padding(
+            padding: const EdgeInsets.only(left: 3),
+            child: Icon(Icons.favorite_rounded, size: 16,
+                color: i < _lives ? const Color(0xFFFF6B6B) : Colors.white12),
+          )),
+          const SizedBox(width: 8),
+          // Звёзды
           Container(
-            margin: const EdgeInsets.only(right: 10),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: kBlue.withOpacity(0.25),
+              gradient: const LinearGradient(colors: [Color(0xFFFF8E53), Color(0xFFFFD700)]),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: kBlue),
             ),
             child: Row(children: [
-              const Text('🛡️', style: TextStyle(fontSize: 12)),
+              const Text('⭐', style: TextStyle(fontSize: 11)),
               const SizedBox(width: 4),
-              Text('${_shield}s', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+              Text('$_starsCollected/$_targetStars',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
             ]),
           ),
-        Text('Очки: $_score',
-            style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        const SizedBox(width: 14),
-        Container(
-          width: 40, height: 40,
+        ]),
+      ]),
+    );
+  }
+
+  Widget _buildGameArea() {
+    return GestureDetector(
+      onTapDown:  (_) { setState(() => _pressing = true);  HapticFeedback.selectionClick(); },
+      onTapUp:    (_) { setState(() => _pressing = false); },
+      onTapCancel:()  { setState(() => _pressing = false); },
+      onPanStart: (_) { setState(() => _pressing = true);  },
+      onPanEnd:   (_) { setState(() => _pressing = false); },
+      behavior: HitTestBehavior.opaque,
+      child: LayoutBuilder(builder: (ctx, constraints) {
+        final fw = constraints.maxWidth;
+        final fh = constraints.maxHeight;
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           decoration: BoxDecoration(
-            border: Border.all(color: timeColor, width: 2),
-            shape: BoxShape.circle,
-            color: timeColor.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
           ),
-          child: Center(child: Text('$_timeLeft',
-              style: TextStyle(color: timeColor, fontSize: 13, fontWeight: FontWeight.w900))),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(children: [
+            // Объекты
+            ..._objects.map((o) {
+              final x = o.x * fw - _objSize / 2;
+              final y = o.y * fh - _objSize / 2;
+              return Positioned(
+                left: x, top: y,
+                child: Transform.scale(
+                  scale: o.scale,
+                  child: Container(
+                    width: _objSize, height: _objSize,
+                    decoration: o.isStar ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: o.color.withOpacity(0.15),
+                      border: Border.all(color: o.color.withOpacity(0.8), width: 1.5),
+                      boxShadow: [BoxShadow(color: o.color.withOpacity(0.4), blurRadius: 10)],
+                    ) : BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: o.color.withOpacity(0.8),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Center(
+                      child: Text(o.isStar ? '⭐' : '☄️',
+                          style: const TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+
+            // Корабль
+            Positioned(
+              left: 0.12 * fw - _shipSize / 2,
+              top: _shipY * fh - _shipSize / 2,
+              child: Transform.rotate(
+                angle: _shipTilt * pi / 180,
+                child: AnimatedOpacity(
+                  opacity: _isHit ? 0.3 : 1.0,
+                  duration: const Duration(milliseconds: 100),
+                  child: Container(
+                    width: _shipSize, height: _shipSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: _pressing
+                            ? [const Color(0xFFFFD700), const Color(0xFFFF6B35)]
+                            : [const Color(0xFF2E86AB), const Color(0xFF00D4AA)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_pressing ? const Color(0xFFFFD700) : const Color(0xFF00D4AA)).withOpacity(0.6),
+                          blurRadius: _pressing ? 20 : 12,
+                        ),
+                      ],
+                    ),
+                    child: const Center(child: Text('🚀', style: TextStyle(fontSize: 20))),
+                  ),
+                ),
+              ),
+            ),
+
+            // Тяга двигателя (частицы)
+            if (_pressing)
+              Positioned(
+                left: 0.12 * fw - 30,
+                top: _shipY * fh - 4,
+                child: Container(
+                  width: 24, height: 8,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: const LinearGradient(
+                      colors: [Colors.transparent, Color(0xFFFF6B35)],
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Widget _buildHint() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(
+          _pressing ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+          color: _pressing ? const Color(0xFFFFD700) : Colors.white30,
+          size: 14,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          _pressing ? 'Тяга включена ↑' : 'Держи экран — лети вверх',
+          style: TextStyle(
+            fontSize: 12,
+            color: _pressing ? const Color(0xFFFFD700) : Colors.white30,
+            fontWeight: _pressing ? FontWeight.w700 : FontWeight.w400,
+          ),
         ),
       ]),
     );
   }
 
-  Widget _buildWinOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: ScaleTransition(scale: _winScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🎓', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Диплом получен!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Набрано $_score очков',
-                style: const TextStyle(color: Color(0xFF00BCD4), fontSize: 14)),
-          ],
-        ))),
-      ),
-    );
-  }
-
-  Widget _buildFailOverlay() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.7),
-        child: ScaleTransition(scale: _failScale, child: Center(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('💥', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            const Text('Сбит астероидом!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 8),
-            Text('Очков было: $_score',
-                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14)),
-          ],
-        ))),
+  Widget _buildResultOverlay() {
+    final isSuccess = _phase == _StarPhase.success;
+    return AnimatedBuilder(
+      animation: _resultCtrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _resultFade,
+        child: Container(
+          color: Colors.black.withOpacity(0.78),
+          child: Center(
+            child: ScaleTransition(
+              scale: _resultScale,
+              child: Container(
+                margin: const EdgeInsets.all(40),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F2D),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isSuccess ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(isSuccess ? '🚀' : '💥', style: const TextStyle(fontSize: 56)),
+                  const SizedBox(height: 12),
+                  Text(
+                    isSuccess ? 'МИССИЯ\nВЫПОЛНЕНА!' : 'КОРАБЛЬ\nУНИЧТОЖЕН',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900,
+                      color: isSuccess ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B),
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isSuccess
+                        ? '$_starsCollected звёзд собрано! 🌟'
+                        : 'Собрано: $_starsCollected из $_targetStars',
+                    style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.6)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _StarDriftPainter extends CustomPainter {
-  final List<_Asteroid> asteroids;
-  final List<_Pickup> pickups;
-  final List<_Spark> sparks;
-  final List<Offset> trail;
-  final double px, py;
-  final int shield;
-  final bool won, failed;
+// ─── Фон — звёздное поле ─────────────────────────────────────────────────────
+class _SpaceBgPainter extends CustomPainter {
+  final double offset;
+  static final _rng = Random(2024);
+  static late List<_Star> _stars;
+  static bool _initialized = false;
 
-  static final _rng = Random(1);
-
-  _StarDriftPainter({
-    required this.asteroids, required this.pickups, required this.sparks,
-    required this.trail, required this.px, required this.py,
-    required this.shield, required this.won, required this.failed,
-  });
+  _SpaceBgPainter(this.offset) {
+    if (!_initialized) {
+      _initialized = true;
+      _stars = List.generate(120, (i) => _Star(
+        x: _rng.nextDouble(),
+        y: _rng.nextDouble(),
+        r: 0.5 + _rng.nextDouble() * 1.5,
+        speed: 0.1 + _rng.nextDouble() * 0.5,
+        twinkleFreq: 0.3 + _rng.nextDouble() * 1.0,
+        twinkleOffset: _rng.nextDouble() * 6.28,
+      ));
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    _drawBackground(canvas, size);
-    _drawStarfield(canvas, size);
-    _drawTrail(canvas);
-    _drawPickups(canvas);
-    _drawAsteroids(canvas);
-    _drawSparks(canvas);
-    _drawPlayer(canvas, size);
-  }
-
-  void _drawBackground(Canvas canvas, Size size) {
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height),
-        Paint()..color = const Color(0xFF03060F));
+        Paint()..color = const Color(0xFF020B1A));
 
-    // Дальние туманности
-    for (int i = 0; i < 2; i++) {
-      final cx = size.width * (0.3 + i * 0.5);
-      final cy = size.height * (0.3 + i * 0.4);
-      canvas.drawCircle(Offset(cx, cy), size.width * 0.22,
-          Paint()..shader = RadialGradient(
-            colors: [const Color(0xFF0D47A1).withOpacity(0.08), Colors.transparent],
-          ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: size.width * 0.22)));
+    // Туманность
+    final nebula = Paint();
+    nebula.shader = RadialGradient(
+      colors: [const Color(0xFF0D1B4B).withOpacity(0.6), Colors.transparent],
+    ).createShader(Rect.fromCircle(center: Offset(size.width * 0.7, size.height * 0.3), radius: 200));
+    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.3), 200, nebula);
+
+    nebula.shader = RadialGradient(
+      colors: [const Color(0xFF1A0B3B).withOpacity(0.4), Colors.transparent],
+    ).createShader(Rect.fromCircle(center: Offset(size.width * 0.2, size.height * 0.7), radius: 160));
+    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.7), 160, nebula);
+
+    // Звёзды
+    for (final s in _stars) {
+      final dx = (s.x * size.width - (offset * s.speed * 0.5) % size.width + size.width) % size.width;
+      final twinkle = 0.2 + 0.8 * (0.5 + 0.5 * sin(offset * 0.03 * s.twinkleFreq + s.twinkleOffset));
+      canvas.drawCircle(Offset(dx, s.y * size.height), s.r,
+          Paint()..color = Colors.white.withOpacity(twinkle * 0.7));
     }
-  }
-
-  void _drawStarfield(Canvas canvas, Size size) {
-    final tick = DateTime.now().millisecondsSinceEpoch;
-    for (int i = 0; i < 60; i++) {
-      final x = _rng.nextDouble() * size.width;
-      final y = _rng.nextDouble() * size.height;
-      final twinkle = 0.3 + 0.7 * sin(tick / 1000.0 + i * 1.3);
-      canvas.drawCircle(Offset(x, y), 1 + _rng.nextDouble(),
-          Paint()..color = Colors.white.withOpacity(0.2 + 0.4 * twinkle));
-    }
-  }
-
-  void _drawTrail(Canvas canvas) {
-    for (int i = 1; i < trail.length; i++) {
-      final t = i / trail.length;
-      canvas.drawCircle(trail[i], 5 * t,
-          Paint()..color = kGreen.withOpacity(t * 0.5)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 * t));
-    }
-  }
-
-  void _drawPickups(Canvas canvas) {
-    for (final p in pickups) {
-      final pulse = 0.8 + 0.2 * sin(p.pulse);
-      final color = p.isShield ? kBlue : kGold;
-      canvas.drawCircle(Offset(p.x, p.y), 14 * pulse,
-          Paint()..color = color.withOpacity(0.15)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
-      canvas.drawCircle(Offset(p.x, p.y), 8,
-          Paint()..color = color.withOpacity(0.9));
-      final tp = TextPainter(
-        text: TextSpan(text: p.isShield ? '🛡️' : '⭐', style: const TextStyle(fontSize: 14)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(p.x - tp.width / 2, p.y - tp.height / 2));
-    }
-  }
-
-  void _drawAsteroids(Canvas canvas) {
-    for (final a in asteroids) {
-      canvas.save();
-      canvas.translate(a.x, a.y);
-      canvas.rotate(a.rotation);
-
-      final path = _buildAsteroidPath(a.radius, a.sides);
-
-      // Свечение
-      canvas.drawPath(path,
-          Paint()..color = a.color.withOpacity(0.2)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-      // Тело
-      canvas.drawPath(path, Paint()..color = a.color.withOpacity(0.75));
-      // Контур
-      canvas.drawPath(path,
-          Paint()..color = a.color.withOpacity(0.9)
-            ..style = PaintingStyle.stroke..strokeWidth = 1.5);
-
-      canvas.restore();
-    }
-  }
-
-  Path _buildAsteroidPath(double r, int sides) {
-    final path = Path();
-    final rng2 = Random(sides);
-    for (int i = 0; i < sides; i++) {
-      final angle = 2 * pi * i / sides;
-      final radius = r * (0.75 + rng2.nextDouble() * 0.35);
-      final x = cos(angle) * radius;
-      final y = sin(angle) * radius;
-      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
-    }
-    path.close();
-    return path;
-  }
-
-  void _drawSparks(Canvas canvas) {
-    for (final s in sparks) {
-      canvas.drawCircle(Offset(s.x, s.y), 3 * s.life,
-          Paint()..color = s.color.withOpacity(s.life)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
-    }
-  }
-
-  void _drawPlayer(Canvas canvas, Size size) {
-    if (px == 0) return;
-
-    // Щит
-    if (shield > 0) {
-      final pulse = 0.7 + 0.3 * sin(DateTime.now().millisecondsSinceEpoch / 150.0);
-      canvas.drawCircle(Offset(px, py), 24 * pulse,
-          Paint()..color = kBlue.withOpacity(0.2 * pulse)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
-      canvas.drawCircle(Offset(px, py), 20,
-          Paint()..color = kBlue.withOpacity(0.4 * pulse)
-            ..style = PaintingStyle.stroke..strokeWidth = 2);
-    }
-
-    // Двигатель (огонь сзади)
-    final enginePath = Path()
-      ..moveTo(px - 18, py - 5)
-      ..lineTo(px - 32, py)
-      ..lineTo(px - 18, py + 5)
-      ..close();
-    canvas.drawPath(enginePath,
-        Paint()..shader = LinearGradient(
-          colors: [Colors.orange.withOpacity(0.9), Colors.transparent],
-          begin: Alignment.centerRight, end: Alignment.centerLeft,
-        ).createShader(Rect.fromLTWH(px - 32, py - 5, 14, 10)));
-
-    // Корпус ракеты
-    final rocketPath = Path()
-      ..moveTo(px + 20, py)       // нос
-      ..lineTo(px - 12, py - 10)  // верх
-      ..lineTo(px - 18, py - 10)  // хвост верх
-      ..lineTo(px - 18, py + 10)  // хвост низ
-      ..lineTo(px - 12, py + 10)  // низ
-      ..close();
-
-    // Свечение
-    canvas.drawPath(rocketPath,
-        Paint()..color = kGreen.withOpacity(0.2)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
-    // Тело
-    canvas.drawPath(rocketPath,
-        Paint()..shader = LinearGradient(
-          colors: [kGreen, const Color(0xFF00A080)],
-          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-        ).createShader(Rect.fromLTWH(px - 18, py - 10, 38, 20)));
-    // Контур
-    canvas.drawPath(rocketPath,
-        Paint()..color = kGreen.withOpacity(0.8)
-          ..style = PaintingStyle.stroke..strokeWidth = 1.5);
-
-    // Иллюминатор
-    canvas.drawCircle(Offset(px + 2, py), 4,
-        Paint()..color = const Color(0xFF00F5FF).withOpacity(0.8));
-    canvas.drawCircle(Offset(px + 2, py), 2,
-        Paint()..color = Colors.white);
   }
 
   @override
-  bool shouldRepaint(_StarDriftPainter old) => true;
+  bool shouldRepaint(_SpaceBgPainter old) => old.offset != offset;
+}
+
+class _Star {
+  final double x, y, r, speed, twinkleFreq, twinkleOffset;
+  _Star({required this.x, required this.y, required this.r,
+      required this.speed, required this.twinkleFreq, required this.twinkleOffset});
 }
