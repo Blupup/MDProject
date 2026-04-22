@@ -15,15 +15,70 @@ class _Element {
   final String result;
   final String emoji;
   final Color color;
-  const _Element(this.a, this.b, this.result, this.emoji, this.color);
+  final bool orderSensitive;
+  final List<String> unstableResults;
+  const _Element(
+    this.a,
+    this.b,
+    this.result,
+    this.emoji,
+    this.color, {
+    this.orderSensitive = false,
+    this.unstableResults = const [],
+  });
+}
+
+class _ContextWhisper {
+  final String hint;
+  final String favoredA;
+  final String favoredB;
+  const _ContextWhisper(this.hint, this.favoredA, this.favoredB);
 }
 
 const _kElements = [
-  _Element('🔥', '💧', 'Пар',     '☁️', Color(0xFF00D4AA)),
-  _Element('🌍', '🔥', 'Магма',   '🌋', Color(0xFFFF6B35)),
-  _Element('💧', '🌍', 'Болото',  '🌿', Color(0xFF4CAF50)),
-  _Element('🌬️', '💧', 'Шторм',  '⛈️', Color(0xFF2E86AB)),
-  _Element('🌬️', '🔥', 'Молния', '⚡', Color(0xFFFFD700)),
+  _Element(
+    '🔥',
+    '💧',
+    'Пар',
+    '☁️',
+    Color(0xFF00D4AA),
+    orderSensitive: true,
+    unstableResults: ['Кислотный пар', 'Туман'],
+  ),
+  _Element(
+    '🌍',
+    '🔥',
+    'Магма',
+    '🌋',
+    Color(0xFFFF6B35),
+    orderSensitive: true,
+    unstableResults: ['Шлак', 'Обсидиан'],
+  ),
+  _Element(
+    '💧',
+    '🌍',
+    'Болото',
+    '🌿',
+    Color(0xFF4CAF50),
+    unstableResults: ['Тина', 'Ядовитая жижа'],
+  ),
+  _Element(
+    '🌬️',
+    '💧',
+    'Шторм',
+    '⛈️',
+    Color(0xFF2E86AB),
+    unstableResults: ['Смерч', 'Грозовой фронт'],
+  ),
+  _Element(
+    '🌬️',
+    '🔥',
+    'Молния',
+    '⚡',
+    Color(0xFFFFD700),
+    orderSensitive: true,
+    unstableResults: ['Электродуга', 'Плазменный всплеск'],
+  ),
 ];
 
 class _Particle {
@@ -74,6 +129,24 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
   late Animation<double> _flashAnim;
 
   static const _symbols = ['🔥', '💧', '🌍', '🌬️'];
+  static const _contextWhispers = [
+    _ContextWhisper('Подсказка: огонь должен вести воду.', '🔥', '💧'),
+    _ContextWhisper('Подсказка: ветер пробуждает пламя.', '🌬️', '🔥'),
+    _ContextWhisper('Подсказка: вода укрощает землю.', '💧', '🌍'),
+    _ContextWhisper('Подсказка: земля удерживает жар.', '🌍', '🔥'),
+  ];
+  static const _noiseReactions = [
+    'Пустая вспышка',
+    'Иллюзорная реакция',
+    'Эфирный шум',
+    'Ложный резонанс',
+  ];
+
+  int _distortionLevel = 0;
+  double _resonance = 0.0;
+  int _tickCount = 0;
+  int _contextIdx = 0;
+  Set<int> _distortedParticles = {};
 
   @override
   void initState() {
@@ -131,6 +204,15 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
     final fh = size.height * 0.55;
 
     setState(() {
+      _tickCount++;
+      if (_tickCount % 180 == 0) {
+        _contextIdx = (_contextIdx + 1) % _contextWhispers.length;
+      }
+      if (_tickCount % 120 == 0) {
+        _refreshDistortion();
+      }
+      _resonance = (_resonance - 0.002).clamp(0.0, 1.0);
+
       for (final p in _particles) {
         if (p.idx == _draggingIdx) continue;
         p.phase += 0.03;
@@ -144,11 +226,26 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
     });
   }
 
+  void _refreshDistortion() {
+    _distortedParticles.clear();
+    final targetCount = _distortionLevel.clamp(0, 3);
+    if (targetCount == 0) return;
+    final shuffled = List<int>.generate(_particles.length, (i) => i)..shuffle(_rng);
+    _distortedParticles.addAll(shuffled.take(targetCount));
+  }
+
+  String _effectiveSymbolForParticle(_Particle p) {
+    if (!_distortedParticles.contains(p.idx)) return p.symbol;
+    final idx = _symbols.indexOf(p.symbol);
+    if (idx < 0) return p.symbol;
+    return _symbols[(idx + 1) % _symbols.length];
+  }
+
   // ─── Попытка слияния ─────────────────────────────────────────────────────
   void _tryMerge(int fromIdx, int toIdx) {
     if (fromIdx == toIdx) return;
-    final a = _particles[fromIdx].symbol;
-    final b = _particles[toIdx].symbol;
+    final a = _effectiveSymbolForParticle(_particles[fromIdx]);
+    final b = _effectiveSymbolForParticle(_particles[toIdx]);
     if (a == b) return;
 
     _tries++;
@@ -157,14 +254,50 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
       return;
     }
 
-    final match = _kElements.where((e) =>
-      (e.a == a && e.b == b) || (e.a == b && e.b == a)).firstOrNull;
+    final context = _contextWhispers[_contextIdx];
+    final followsContext = context.favoredA == a && context.favoredB == b;
+    final direct = _remaining.where((e) => e.a == a && e.b == b).firstOrNull;
+    final reverse = _remaining.where((e) => e.a == b && e.b == a).firstOrNull;
 
-    if (match != null && _remaining.contains(match)) {
+    _resonance = (_resonance + (followsContext ? 0.15 : 0.04)).clamp(0.0, 1.0);
+    final noiseChance = (0.09 + _distortionLevel * 0.06 + (1 - _resonance) * 0.10 - (followsContext ? 0.05 : 0.0))
+        .clamp(0.04, 0.38);
+    final hasNoise = _rng.nextDouble() < noiseChance;
+
+    if (hasNoise) {
+      HapticFeedback.selectionClick();
+      _lastResult = '🫧 ${_noiseReactions[_rng.nextInt(_noiseReactions.length)]}';
+      _showResult = true;
+      _flashCtrl.forward(from: 0);
+      _distortionLevel = (_distortionLevel + 1).clamp(0, 3);
+      setState(() {});
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (!mounted) return;
+        setState(() => _showResult = false);
+      });
+      return;
+    }
+
+    _Element? match = direct;
+    if (match == null && reverse != null && !reverse.orderSensitive) {
+      match = reverse;
+    }
+
+    if (match != null) {
       HapticFeedback.mediumImpact();
       _remaining.remove(match);
       _discovered.add(match.result);
-      _lastResult = '${match.emoji} ${match.result} создан!';
+      _distortionLevel = (_distortionLevel - 1).clamp(0, 3);
+      final unstable = match.unstableResults.isNotEmpty &&
+          (_distortedParticles.contains(fromIdx) ||
+              _distortedParticles.contains(toIdx) ||
+              _rng.nextDouble() < (0.18 + _distortionLevel * 0.06));
+      if (unstable) {
+        final unstableResult = match.unstableResults[_rng.nextInt(match.unstableResults.length)];
+        _lastResult = '${match.emoji} $unstableResult (ядро: ${match.result})';
+      } else {
+        _lastResult = '${match.emoji} ${match.result} создан!';
+      }
       _showResult = true;
       _flashCtrl.forward(from: 0);
       setState(() {});
@@ -176,6 +309,17 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
       });
     } else {
       HapticFeedback.lightImpact();
+      _distortionLevel = (_distortionLevel + 1).clamp(0, 3);
+      if (reverse != null && reverse.orderSensitive) {
+        _lastResult = '↺ Порядок нарушен: нужен ${reverse.a} -> ${reverse.b}';
+        _showResult = true;
+        _flashCtrl.forward(from: 0);
+        setState(() {});
+        Future.delayed(const Duration(milliseconds: 950), () {
+          if (!mounted) return;
+          setState(() => _showResult = false);
+        });
+      }
     }
   }
 
@@ -307,6 +451,9 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
                 _hoveredIdx = i;
               }
             }
+            if (_hoveredIdx != null) {
+              _resonance = (_resonance + 0.007).clamp(0.0, 1.0);
+            }
           });
         },
         onPanEnd: (_) {
@@ -325,6 +472,33 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(children: [
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _bgAnim,
+                builder: (_, __) => CustomPaint(
+                  painter: _RitualTablePainter(
+                    _bgAnim.value,
+                    resonance: _resonance,
+                    distortionLevel: _distortionLevel,
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _bgAnim,
+                builder: (_, __) => CustomPaint(
+                  painter: _EnergyLinksPainter(
+                    particles: _particles,
+                    draggingIdx: _draggingIdx,
+                    pulse: _bgAnim.value,
+                    resonance: _resonance,
+                  ),
+                ),
+              ),
+            ),
+
             // Линия перетаскивания
             if (_draggingIdx != null && _dragPos != null)
               CustomPaint(
@@ -341,6 +515,8 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
               final isHovered = _hoveredIdx == p.idx;
               final isDragging = _draggingIdx == p.idx;
               final breathe = sin(p.phase) * 0.08;
+              final isDistorted = _distortedParticles.contains(p.idx);
+              final displaySymbol = _effectiveSymbolForParticle(p);
 
               return Positioned(
                 left: p.pos.dx - 28,
@@ -353,25 +529,33 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
                       shape: BoxShape.circle,
                       color: (isDragging || isHovered)
                           ? const Color(0xFFFFD700).withOpacity(0.2)
+                          : isDistorted
+                              ? const Color(0xFFA855F7).withOpacity(0.20)
                           : Colors.black.withOpacity(0.5),
                       border: Border.all(
                         color: isDragging
                             ? const Color(0xFFFFD700)
+                            : isDistorted
+                                ? const Color(0xFFC084FC)
                             : isHovered
                                 ? const Color(0xFF00D4AA)
                                 : Colors.white.withOpacity(0.2),
                         width: isDragging || isHovered ? 2.5 : 1.5,
                       ),
-                      boxShadow: isDragging || isHovered ? [
+                      boxShadow: isDragging || isHovered || isDistorted ? [
                         BoxShadow(
-                          color: (isDragging ? const Color(0xFFFFD700) : const Color(0xFF00D4AA))
+                          color: (isDragging
+                                  ? const Color(0xFFFFD700)
+                                  : isDistorted
+                                      ? const Color(0xFFC084FC)
+                                      : const Color(0xFF00D4AA))
                               .withOpacity(0.5),
                           blurRadius: 20,
                         ),
                       ] : null,
                     ),
                     child: Center(
-                      child: Text(p.symbol, style: const TextStyle(fontSize: 22)),
+                      child: Text(displaySymbol, style: const TextStyle(fontSize: 22)),
                     ),
                   ),
                 ),
@@ -426,6 +610,21 @@ class _ParticleAlchemyGameState extends State<ParticleAlchemyGame>
           }).toList(),
         ),
         const SizedBox(height: 10),
+        Center(
+          child: Text(
+            _contextWhispers[_contextIdx].hint,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 10, color: const Color(0xFF93C5FD).withOpacity(0.75)),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            'Резонанс: ${(_resonance * 100).round()}%   Искажение: ${_distortionLevel + 1}/4',
+            style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.45), letterSpacing: 0.5),
+          ),
+        ),
+        const SizedBox(height: 8),
         Center(child: Text('Перетаскивай частицы друг на друга',
             style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.3)))),
       ]),
@@ -570,4 +769,157 @@ class _AlchemyBgPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AlchemyBgPainter old) => old.t != t;
+}
+
+class _EnergyLinksPainter extends CustomPainter {
+  final List<_Particle> particles;
+  final int? draggingIdx;
+  final double pulse;
+  final double resonance;
+
+  _EnergyLinksPainter({
+    required this.particles,
+    required this.draggingIdx,
+    required this.pulse,
+    required this.resonance,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < particles.length; i++) {
+      for (int j = i + 1; j < particles.length; j++) {
+        final a = particles[i];
+        final b = particles[j];
+        final distance = (a.pos - b.pos).distance;
+
+        if (distance > 145 || a.symbol == b.symbol) continue;
+
+        final intensity = (1 - (distance / 145)).clamp(0.0, 1.0);
+        final shimmer = 0.35 + sin((pulse * 2 * pi) + a.phase + b.phase) * 0.15;
+        final alpha = (0.22 * intensity * shimmer + resonance * 0.2).clamp(0.0, 0.55);
+        final isActiveLink = i == draggingIdx || j == draggingIdx;
+
+        final linkPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = isActiveLink ? 2.2 + resonance : 1.0 + resonance * 0.9
+          ..shader = LinearGradient(
+            colors: [
+              const Color(0xFF67E8F9).withOpacity(alpha),
+              const Color(0xFFA855F7).withOpacity(alpha * 0.85),
+            ],
+          ).createShader(Rect.fromPoints(a.pos, b.pos));
+
+        canvas.drawLine(a.pos, b.pos, linkPaint);
+
+        final sparkPaint = Paint()
+          ..color = const Color(0xFFC4B5FD).withOpacity(alpha * 1.6)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+        final mid = Offset((a.pos.dx + b.pos.dx) / 2, (a.pos.dy + b.pos.dy) / 2);
+        canvas.drawCircle(mid, isActiveLink ? 2.8 : 1.8, sparkPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EnergyLinksPainter old) {
+    return old.pulse != pulse ||
+        old.resonance != resonance ||
+        old.draggingIdx != draggingIdx ||
+        old.particles != particles;
+  }
+}
+
+class _RitualTablePainter extends CustomPainter {
+  final double t;
+  final double resonance;
+  final int distortionLevel;
+  _RitualTablePainter(this.t, {required this.resonance, required this.distortionLevel});
+
+  static const _runes = ['ᚠ', 'ᚱ', 'ᛃ', 'ᛉ', 'ᛇ', 'ᛟ', 'ᛞ', 'ᛏ'];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final baseRadius = min(size.width, size.height) * 0.40;
+    final pulse = 0.5 + 0.5 * sin(t * 2 * pi);
+    final distortionPulse = distortionLevel / 3;
+
+    final haloPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF4338CA).withOpacity(0.17 + pulse * 0.08 + resonance * 0.08),
+          const Color(0xFF0B0A14).withOpacity(0.02),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.58, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: baseRadius * 1.25));
+    canvas.drawCircle(center, baseRadius * 1.25, haloPaint);
+
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = const Color(0xFF8B5CF6).withOpacity(0.30 + resonance * 0.18);
+    canvas.drawCircle(center, baseRadius, ringPaint);
+    canvas.drawCircle(center, baseRadius * 0.72, ringPaint..color = const Color(0xFF67E8F9).withOpacity(0.18 + resonance * 0.22));
+    canvas.drawCircle(
+      center,
+      baseRadius * 0.43,
+      ringPaint..color = const Color(0xFFA78BFA).withOpacity(0.14 + distortionPulse * 0.25),
+    );
+
+    final glyphStyle = TextStyle(
+      color: const Color(0xFFC4B5FD).withOpacity(0.60 + pulse * 0.2),
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+    );
+    for (int i = 0; i < _runes.length; i++) {
+      final angle = (2 * pi * i / _runes.length) + (t * 0.6);
+      final bob = sin(t * 2 * pi + i) * (2 + distortionLevel * 1.2);
+      final pos = Offset(
+        center.dx + cos(angle) * (baseRadius * 0.9),
+        center.dy + sin(angle) * (baseRadius * 0.9) + bob,
+      );
+      final tp = TextPainter(
+        text: TextSpan(text: _runes[i], style: glyphStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    final smokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = const Color(0xFF93C5FD).withOpacity(0.11);
+    for (int i = 0; i < 4; i++) {
+      final startX = size.width * (0.2 + i * 0.2);
+      final startY = size.height * (0.78 + sin(t * 2 * pi + i) * 0.03);
+      final path = Path()
+        ..moveTo(startX, startY)
+        ..quadraticBezierTo(
+          startX + 18 * sin(t * 3 * pi + i),
+          startY - 30,
+          startX + 8 * cos(t * 2 * pi + i),
+          startY - 60,
+        );
+      canvas.drawPath(path, smokePaint);
+    }
+
+    final particlePaint = Paint()
+      ..color = const Color(0xFFA5B4FC).withOpacity(0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    for (int i = 0; i < 22; i++) {
+      final angle = (2 * pi * i / 22) + t * 2 * pi * 0.35;
+      final radius = baseRadius * (0.22 + (i % 4) * 0.16);
+      final dot = Offset(
+        center.dx + cos(angle) * radius,
+        center.dy + sin(angle) * radius,
+      );
+      canvas.drawCircle(dot, (i % 3 == 0) ? 1.8 + resonance : 1.2, particlePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RitualTablePainter old) =>
+      old.t != t || old.resonance != resonance || old.distortionLevel != distortionLevel;
 }
