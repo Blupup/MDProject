@@ -8,6 +8,7 @@ import '../widgets/confetti_widget.dart';
 import '../game/magic_runes_game.dart';
 import '../game/jelly_tower_game.dart';
 import '../game/particle_alchemy_game.dart';
+import '../game/artifact_reading_game.dart';
 import '../game/shadow_escape_game.dart';
 import '../game/star_drift_game.dart';
 
@@ -76,6 +77,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
       MiniGameType.magicRunes      => MagicRunesGame(onSuccess: ok, onFail: fail),
       MiniGameType.jellyTower      => JellyTowerGame(onSuccess: ok, onFail: fail),
       MiniGameType.particleAlchemy => ParticleAlchemyGame(onSuccess: ok, onFail: fail),
+      MiniGameType.artifactReading => ArtifactReadingGame(onSuccess: ok, onFail: fail),
       MiniGameType.shadowEscape    => ShadowEscapeGame(onSuccess: ok, onFail: fail),
       MiniGameType.starDrift       => StarDriftGame(onSuccess: ok, onFail: fail),
       MiniGameType.none            => MagicRunesGame(onSuccess: ok, onFail: fail),
@@ -495,6 +497,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
     MiniGameType.magicRunes      => 'Играть: Магические руны 🔮',
     MiniGameType.jellyTower      => 'Играть: Башня из желе 🏗️',
     MiniGameType.particleAlchemy => 'Играть: Алхимия частиц 💫',
+    MiniGameType.artifactReading => 'Играть: Чтение артефактов 🕯️',
     MiniGameType.shadowEscape    => 'Играть: Побег тени 👾',
     MiniGameType.starDrift       => 'Играть: Звёздный дрифт 🚀',
     MiniGameType.none            => 'Я нашёл это место ✓',
@@ -504,6 +507,7 @@ class _QuestExecutionScreenState extends State<QuestExecutionScreen>
     MiniGameType.magicRunes      => Icons.auto_fix_high_rounded,
     MiniGameType.jellyTower      => Icons.stacked_bar_chart_rounded,
     MiniGameType.particleAlchemy => Icons.auto_awesome_rounded,
+    MiniGameType.artifactReading => Icons.menu_book_rounded,
     MiniGameType.shadowEscape    => Icons.dark_mode_rounded,
     MiniGameType.starDrift       => Icons.rocket_launch_rounded,
     MiniGameType.none            => Icons.check_rounded,

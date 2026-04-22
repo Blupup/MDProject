@@ -3,7 +3,15 @@
 
 import 'package:flutter/material.dart';
 
-enum MiniGameType { none, magicRunes, jellyTower, particleAlchemy, shadowEscape, starDrift }
+enum MiniGameType {
+  none,
+  magicRunes,
+  jellyTower,
+  particleAlchemy,
+  artifactReading,
+  shadowEscape,
+  starDrift
+}
 
 // ─── Легенда корпуса (показывается при первом входе) ─────────────────────
 class CorpusLegend {
@@ -211,7 +219,7 @@ class QuestData {
               'Именно здесь студенты впервые заставили роботов «вспоминать» историю корпуса. '
               'Собери её обратно.',
           locationPhoto: '',
-          miniGameType: MiniGameType.jellyTower,
+          miniGameType: MiniGameType.artifactReading,
           miniGameItems: ['Принтер', 'Манипулятор', 'Филамент', 'Модель', 'Стол', 'Сопло'],
           pairPhotos: ['assets/images/pairs_board1.jpg','assets/images/pairs_board2.jpg','assets/images/pairs_board3.jpg','assets/images/pairs_board4.jpg','assets/images/pairs_board5.jpg','assets/images/pairs_board6.jpg'],
           puzzlePhoto: 'assets/images/puzzle_photo.jpg',
